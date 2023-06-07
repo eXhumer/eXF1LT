@@ -15,6 +15,9 @@
     "postinstall": "patch-package",
     "dist": "tsc"
   },
+  "engines": {
+    "node": ">=16"
+  },
   "repository": {
     "type": "git",
     "url": "https://github.com/eXhumer/eXF1LT"
