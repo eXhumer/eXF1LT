@@ -25,6 +25,7 @@
     "linux"
   ],
   "dependencies": {
+    "@exhumer/ink-gradient": "^3.5.0",
     "commander": "^10.0.1",
     "ink": "^4.2.0",
     "ink-big-text": "^2.0.0",
