@@ -14,10 +14,9 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { useEffect, useState } from "react";
-import { Box } from "ink";
 import { F1LiveTimingClient } from "./Client.js";
-import Logo from "./Components/Logo.js";
-import WeatherData from "./Components/WeatherData.js";
+import { LogoFactory } from "./Components/Logo.js";
+import { WeatherDataFactory } from "./Components/WeatherData.js";
 
 type AppProps = {
   topics: string[];
@@ -28,36 +27,40 @@ type AppProps = {
   };
 };
 
-const App = ({ topics, opts }: AppProps) => {
-  const [current, setCurrent] = useState<Record<string, any> | null>(null);
+export const AppFactory = async () => {
+  const ink = await import("ink");
+  const Logo = await LogoFactory();
+  const WeatherData = await WeatherDataFactory();
 
-  useEffect(() => {
-    const lt_client = new F1LiveTimingClient(opts.signalrUrl, opts.streamingHub, topics);
-    lt_client.on("subscribed", () => { setCurrent(lt_client.current); });
-    lt_client.on("feed", (topic, data, timestamp) => { setCurrent(lt_client.current); });
-    lt_client.start();
+  return ({ topics, opts }: AppProps) => {
+    const [current, setCurrent] = useState<Record<string, any> | null>(null);
 
-    return () => {
-      lt_client.end();
-    };
-  }, []);
+    useEffect(() => {
+      const lt_client = new F1LiveTimingClient(opts.signalrUrl, opts.streamingHub, topics);
+      lt_client.on("subscribed", () => { setCurrent(lt_client.current); });
+      lt_client.on("feed", (topic, data, timestamp) => { setCurrent(lt_client.current); });
+      lt_client.start();
 
-  return (
-    <Box flexDirection="column" justifyContent="flex-start" alignItems="center">
-      <Logo />
-      {current !== null && "WeatherData" in current ?
-        <WeatherData
-          AirTemp={current["WeatherData"]["AirTemp"] as string}
-          Humidity={current["WeatherData"]["Humidity"] as string}
-          Pressure={current["WeatherData"]["Pressure"] as string}
-          Rainfall={current["WeatherData"]["Rainfall"] as string}
-          TrackTemp={current["WeatherData"]["TrackTemp"] as string}
-          WindDirection={current["WeatherData"]["WindDirection"] as string}
-          WindSpeed={current["WeatherData"]["WindSpeed"] as string}
-        /> :
-        null}
-    </Box>
-  );
+      return () => {
+        lt_client.end();
+      };
+    }, []);
+
+    return (
+      <ink.Box flexDirection="column" justifyContent="flex-start" alignItems="center">
+        <Logo />
+        {current !== null && "WeatherData" in current ?
+          <WeatherData
+            AirTemp={current["WeatherData"]["AirTemp"] as string}
+            Humidity={current["WeatherData"]["Humidity"] as string}
+            Pressure={current["WeatherData"]["Pressure"] as string}
+            Rainfall={current["WeatherData"]["Rainfall"] as string}
+            TrackTemp={current["WeatherData"]["TrackTemp"] as string}
+            WindDirection={current["WeatherData"]["WindDirection"] as string}
+            WindSpeed={current["WeatherData"]["WindSpeed"] as string}
+          /> :
+          null}
+      </ink.Box>
+    );
+  };
 };
-
-export default App;

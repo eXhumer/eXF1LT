@@ -14,8 +14,7 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { program } from "commander";
-import { render } from "ink";
-import App from "./App.js";
+import { AppFactory } from "./App.js";
 
 program
   .name("eXF1LT")
@@ -33,7 +32,10 @@ program
       process.exit();
     });
 
-    render(<App topics={topics} opts={opts} />);
+    import("ink").then(async ink => {
+      const App = await AppFactory();
+      ink.render(<App topics={topics} opts={opts} />);
+    });
   });
 
 program.parse();

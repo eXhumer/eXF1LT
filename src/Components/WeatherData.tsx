@@ -13,8 +13,6 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import { Box, Text } from "ink";
-
 type WeatherDataProps = {
   AirTemp: string;
   Humidity: string;
@@ -25,24 +23,26 @@ type WeatherDataProps = {
   WindSpeed: string;
 };
 
-const WeatherData = ({ AirTemp, Humidity, Pressure, Rainfall, TrackTemp, WindDirection,
-            WindSpeed }: WeatherDataProps) => (
-  <Box
-    padding={1}
-    borderStyle="round"
-    flexDirection="column"
-    justifyContent="flex-start"
-    alignItems="center"
-  >
-    <Text underline bold>Weather Data</Text>
-    <Text>Air Temperature: <Text color="#FF0000">{AirTemp}</Text></Text>
-    <Text>Humidity: <Text color="#FF0000">{Humidity}</Text></Text>
-    <Text>Pressure: <Text color="#FF0000">{Pressure}</Text></Text>
-    <Text>Rainfall: <Text color="#FF0000">{Rainfall}</Text></Text>
-    <Text>Track Temperature: <Text color="#FF0000">{TrackTemp}</Text></Text>
-    <Text>Wind Direction: <Text color="#FF0000">{WindDirection}</Text></Text>
-    <Text>Wind Speed: <Text color="#FF0000">{WindSpeed}</Text></Text>
-  </Box>
-);
+export const WeatherDataFactory = async () => {
+  const ink = await import("ink");
 
-export default WeatherData;
+  return ({ AirTemp, Humidity, Pressure, Rainfall, TrackTemp, WindDirection,
+            WindSpeed }: WeatherDataProps) => (
+    <ink.Box
+      padding={1}
+      borderStyle="round"
+      flexDirection="column"
+      justifyContent="flex-start"
+      alignItems="center"
+    >
+      <ink.Text underline bold>Weather Data</ink.Text>
+      <ink.Text>Air Temperature: <ink.Text color="#FF0000">{AirTemp}</ink.Text></ink.Text>
+      <ink.Text>Humidity: <ink.Text color="#FF0000">{Humidity}</ink.Text></ink.Text>
+      <ink.Text>Pressure: <ink.Text color="#FF0000">{Pressure}</ink.Text></ink.Text>
+      <ink.Text>Rainfall: <ink.Text color="#FF0000">{Rainfall}</ink.Text></ink.Text>
+      <ink.Text>Track Temperature: <ink.Text color="#FF0000">{TrackTemp}</ink.Text></ink.Text>
+      <ink.Text>Wind Direction: <ink.Text color="#FF0000">{WindDirection}</ink.Text></ink.Text>
+      <ink.Text>Wind Speed: <ink.Text color="#FF0000">{WindSpeed}</ink.Text></ink.Text>
+    </ink.Box>
+  );
+};

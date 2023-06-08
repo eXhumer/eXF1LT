@@ -13,16 +13,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import Gradient from "@exhumer/ink-gradient";
-import { Box } from "ink";
-import BigText from "ink-big-text";
+export const LogoFactory = async () => {
+  const ink = await import("ink");
+  const Gradient = await import("@exhumer/ink-gradient");
+  const BigText = await import("ink-big-text");
 
-const Logo = () => (
-  <Box borderStyle="round" paddingLeft={3} paddingRight={3}>
-    <Gradient name="rainbow">
-      <BigText text="eXF1LT" />
-    </Gradient>
-  </Box>
-);
-
-export default Logo;
+  return () => (
+    <ink.Box borderStyle="round" paddingLeft={3} paddingRight={3}>
+      <Gradient.default name="rainbow">
+        <BigText.default text="eXF1LT" />
+      </Gradient.default>
+    </ink.Box>
+  );
+};

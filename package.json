@@ -4,7 +4,6 @@
   "version": "3.0.0",
   "description": "Live Timing client for Formula 1",
   "main": "dist/CLI.js",
-  "type": "module",
   "homepage": "https://github.com/eXhumer/eXF1LT",
   "author": {
     "name": "eXhumer",

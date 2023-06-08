@@ -1,5 +1,5 @@
 # eXF1LT
-ES modules based implementation of NodeJS based Live Timing client for Formula 1. This will be the primary version of development of eXF1LT. CommonJS implementation will be primarily used to deploy with NodeJS binaries.
+CommonJS based implementation of NodeJS based Live Timing client for Formula 1. This version will be primarily used to deploy with NodeJS binaries. The primary development version of eXF1LT is the ES modules branch.
 
 ![image](https://github.com/eXhumer/eXF1LT/assets/62310242/77217f86-f3ce-44db-99f3-a61f75141638)
 
