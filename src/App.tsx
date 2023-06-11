@@ -17,7 +17,11 @@ import { useEffect, useState } from "react";
 import { Box } from "ink";
 import { F1LiveTimingClient } from "./Client.js";
 import Logo from "./Components/Logo.js";
+import SessionInfo from "./Components/SessionInfo.js";
+import TrackStatus from "./Components/TrackStatus.js";
 import WeatherData from "./Components/WeatherData.js";
+import { SessionInfo as SessionInfoType, TrackStatus as TrackStatusType,
+         WeatherData as WeatherDataType } from "./Types.js";
 
 type AppProps = {
   topics: string[];
@@ -43,19 +47,35 @@ const App = ({ topics, opts }: AppProps) => {
   }, []);
 
   return (
-    <Box flexDirection="column" justifyContent="flex-start" alignItems="center">
+    <Box
+      flexDirection="column"
+      justifyContent="flex-start"
+      alignItems="center"
+    >
       <Logo />
-      {current !== null && "WeatherData" in current ?
-        <WeatherData
-          AirTemp={current["WeatherData"]["AirTemp"] as string}
-          Humidity={current["WeatherData"]["Humidity"] as string}
-          Pressure={current["WeatherData"]["Pressure"] as string}
-          Rainfall={current["WeatherData"]["Rainfall"] as string}
-          TrackTemp={current["WeatherData"]["TrackTemp"] as string}
-          WindDirection={current["WeatherData"]["WindDirection"] as string}
-          WindSpeed={current["WeatherData"]["WindSpeed"] as string}
-        /> :
-        null}
+      <Box
+        flexDirection="row"
+        flexWrap="wrap"
+        justifyContent="space-around"
+        alignItems="stretch"
+      >
+        {current !== null && "WeatherData" in current ?
+          <WeatherData
+            current={current["WeatherData"] as WeatherDataType}
+          /> :
+          null}
+        {current !== null && "SessionInfo" in current ?
+          <SessionInfo
+            current={current["SessionInfo"] as SessionInfoType}
+          /> :
+          null}
+        {current !== null && "TrackStatus" in current ?
+          <TrackStatus
+            current={current["TrackStatus"] as TrackStatusType}
+          /> :
+          null}
+      </Box>
+
     </Box>
   );
 };

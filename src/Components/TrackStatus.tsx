@@ -14,13 +14,13 @@
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
 import { Box, Text } from "ink";
-import { WeatherData as WeatherDataType } from "../Types.js";
+import { TrackStatus as TrackStatusType } from "../Types.js";
 
-type WeatherDataProps = {
-  current: WeatherDataType;
+type TrackStatusProps = {
+  current: TrackStatusType;
 };
 
-const WeatherData = ({ current }: WeatherDataProps) => (
+const TrackStatus = ({ current }: TrackStatusProps) => (
   <Box
     alignItems="center"
     borderStyle="round"
@@ -34,7 +34,7 @@ const WeatherData = ({ current }: WeatherDataProps) => (
       paddingLeft={1}
       paddingRight={1}
     >
-      <Text>Weather Data</Text>
+      <Text>Track Status</Text>
     </Box>
     <Box
       alignItems="stretch"
@@ -48,13 +48,8 @@ const WeatherData = ({ current }: WeatherDataProps) => (
         flexDirection="column"
         justifyContent="flex-start"
       >
-        <Text>Air Temperature</Text>
-        <Text>Humidity</Text>
-        <Text>Pressure</Text>
-        <Text>Track Status</Text>
-        <Text>Track Temperature</Text>
-        <Text>Wind Direction</Text>
-        <Text>Wind Speed</Text>
+        <Text>Status</Text>
+        <Text>Message</Text>
       </Box>
       <Box
         alignItems="flex-start"
@@ -62,20 +57,35 @@ const WeatherData = ({ current }: WeatherDataProps) => (
         flexDirection="column"
         justifyContent="flex-start"
       >
-        <Text>{current.AirTemp}°C</Text>
-        <Text>{current.Humidity}%</Text>
-        <Text>{current.Pressure}mbar</Text>
-        <Text>
-          <Text color={current.Rainfall === "1" ? "#0000FF" : undefined}>
-            {current.Rainfall === "1" ? "WET" : "DRY"}
-          </Text>
-        </Text>
-        <Text><Text>{current.TrackTemp}</Text>°C</Text>
-        <Text><Text>{current.WindDirection}</Text>°</Text>
-        <Text><Text>{current.WindSpeed}</Text>m/s</Text>
+        <Text
+          color={
+            current.Status === "1" || current.Status === "3" ?
+              "#00FF00" : // green
+              current.Status === "2" ?
+              "#FFFF00" : // yellow
+              current.Status === "4" || current.Status == "6" ?
+              "#FFA500" : // orange
+              current.Status === "5" ?
+              "#FF0000" : // red
+              undefined
+          }
+        >{current.Status}</Text>
+        <Text
+          color={
+            current.Message === "AllClear" || current.Message === "Green" ?
+              "#00FF00" : // green
+              current.Message === "Yellow" ?
+              "#FFFF00" : // yellow
+              current.Message === "SCDeployed" || current.Message == "VSCDeployed" ?
+              "#FFA500" : // orange
+              current.Message === "Red" ?
+              "#FF0000" : // red
+              undefined
+          }
+        >{current.Message}</Text>
       </Box>
     </Box>
   </Box>
 );
 
-export default WeatherData;
+export default TrackStatus;

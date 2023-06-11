@@ -13,15 +13,16 @@
 // You should have received a copy of the GNU Affero General Public License
 // along with this program.  If not, see <https://www.gnu.org/licenses/>.
 
-import Gradient from "@exhumer/ink-gradient";
-import { Box } from "ink";
-import BigText from "ink-big-text";
+import { Box, Newline, Text } from "ink";
 
 const Logo = () => (
-  <Box borderStyle="round" paddingLeft={3} paddingRight={3}>
-    <Gradient name="rainbow">
-      <BigText text="eXF1LT" />
-    </Gradient>
+  <Box borderStyle="round" paddingLeft={2} paddingRight={2} paddingTop={1} paddingBottom={1} flexDirection="column">
+    <Text>███████╗██╗  ██╗███████╗ ██╗██╗  ████████╗</Text>
+    <Text>██╔════╝╚██╗██╔╝██╔════╝███║██║  ╚══██╔══╝</Text>
+    <Text>█████╗   ╚███╔╝ █████╗  ╚██║██║     ██║   </Text>
+    <Text>██╔══╝   ██╔██╗ ██╔══╝   ██║██║     ██║   </Text>
+    <Text>███████╗██╔╝ ██╗██║      ██║███████╗██║   </Text>
+    <Text>╚══════╝╚═╝  ╚═╝╚═╝      ╚═╝╚══════╝╚═╝   </Text>
   </Box>
 );
 
