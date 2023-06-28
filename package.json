@@ -44,5 +44,8 @@
   "optionalDependencies": {
     "bufferutil": "^4.0.7",
     "utf-8-validate": "^6.0.3"
+  },
+  "resolutions": {
+    "semver": "^7.5.2"
   }
 }
