@@ -1,8 +1,18 @@
 import { type LiveTimingMessage, Timeline } from '@exhumer/f1-live-timing';
+import { vi } from 'vitest';
 
 import type { Session } from '../src/sources/session.js';
 
 export const T0 = Date.parse('2026-10-11T12:00:00Z');
+
+/**
+ * Retry `assertion` until it passes. Data loads, key presses and throttled
+ * frames all land asynchronously, and CI runners (macOS Intel especially) can
+ * be several times slower than a laptop, so never assert after a fixed sleep.
+ */
+export function eventually<T>(assertion: () => T, timeout = 5_000): Promise<T> {
+  return vi.waitFor(assertion, { timeout, interval: 10 });
+}
 
 /** A JWT with the given `exp` (seconds). The signature is junk; nothing checks it. */
 export function fakeJwt(exp: number | undefined): string {

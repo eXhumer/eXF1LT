@@ -8,9 +8,10 @@ import { runs } from '../src/components/BrailleCanvas.js';
 import { SessionProvider } from '../src/state/SessionContext.js';
 import { extractOutline, findLap, trackOutline } from '../src/state/trackOutline.js';
 import { TimingView } from '../src/views/TimingView.js';
-import { LAP_MS, positionMessages, raceTimeline, replaySession, T0, TRACK_RADIUS } from './helpers.js';
+import { eventually, LAP_MS, positionMessages, raceTimeline, replaySession, T0, TRACK_RADIUS } from './helpers.js';
 
-const tick = (ms = 20) => new Promise((resolve) => setTimeout(resolve, ms));
+/** Lets a key press land before the next one when there is nothing on screen to wait for. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
 
 describe('BrailleGrid', () => {
   it('maps each of the 2×4 dots to its braille bit', () => {
@@ -188,15 +189,16 @@ describe('TrackMapView', () => {
         <TimingView token={undefined} onQuit={() => undefined} raceControl="off" />
       </SessionProvider>,
     );
-    await tick();
-    expect(lastFrame()).toContain('NORRIS');
+    await eventually(() => expect(lastFrame()).toContain('NORRIS'));
 
     stdin.write('2');
-    await tick();
-    const map = lastFrame() ?? '';
+    const map = await eventually(() => {
+      const frame = lastFrame() ?? '';
+      expect(frame).toMatch(/Laps {2}Sectors {2}Head to Head {2}Telemetry/);
+      expect(frame).toMatch(/●(NOR|PIA|VER)/);
+      return frame;
+    });
     expect(map).toMatch(/[⠁-⣿]/u);
-    expect(map).toMatch(/Laps {2}Sectors {2}Head to Head {2}Telemetry/);
-    expect(map).toMatch(/●(NOR|PIA|VER)/);
     expect(map).not.toContain('NORRIS'); // the side panel uses TLAs
     expect(map).toContain('■ SAFETY CAR');
     // With race control off, the latest message shows in the map overlay.
@@ -204,12 +206,10 @@ describe('TrackMapView', () => {
     // Playback keys still work on the tracker.
     expect(map).toContain('LAP 2/62');
     stdin.write('n');
-    await tick(150);
-    expect(lastFrame()).toContain('LAP 3/62');
+    await eventually(() => expect(lastFrame()).toContain('LAP 3/62'));
 
     stdin.write('1');
-    await tick();
-    expect(lastFrame()).toContain('NORRIS');
+    await eventually(() => expect(lastFrame()).toContain('NORRIS'));
     unmount();
   });
 
@@ -220,27 +220,27 @@ describe('TrackMapView', () => {
         <TimingView token={undefined} onQuit={() => undefined} raceControl="off" />
       </SessionProvider>,
     );
-    await tick();
+    await eventually(() => expect(lastFrame()).toContain('NORRIS'));
     stdin.write('2');
-    await tick();
-    stdin.write('	');
-    await tick();
-    stdin.write('	');
-    await tick();
-    expect(lastFrame()).toContain('press h to pin');
+    await eventually(() => expect(lastFrame()).toMatch(/Laps {2}Sectors {2}Head to Head {2}Telemetry/));
+    stdin.write('\t');
+    await settle();
+    stdin.write('\t');
+    await eventually(() => expect(lastFrame()).toContain('press h to pin'));
 
     stdin.write('h'); // pin NOR (the first row)
-    await tick();
-    stdin.write('[B'); // select PIA
-    await tick();
-    const h2h = lastFrame() ?? '';
-    expect(h2h).toMatch(/PIA P2 {2}vs {2}▌NOR P1/);
+    await settle();
+    stdin.write('\u001B[B'); // select PIA
+    const h2h = await eventually(() => {
+      const frame = lastFrame() ?? '';
+      expect(frame).toMatch(/PIA P2 {2}vs {2}▌NOR P1/);
+      return frame;
+    });
     expect(h2h).toContain('INTERVAL +2.400s');
     expect(h2h).toMatch(/27\.913\s+S1 27\.913\s+0\.000/);
 
-    stdin.write('	');
-    await tick();
-    expect(lastFrame()).toMatch(/FOCUS[\s\S]*PIA[\s\S]*FOCUS[\s\S]*NOR/);
+    stdin.write('\t');
+    await eventually(() => expect(lastFrame()).toMatch(/FOCUS[\s\S]*PIA[\s\S]*FOCUS[\s\S]*NOR/));
     unmount();
   });
 
@@ -251,10 +251,9 @@ describe('TrackMapView', () => {
         <TimingView token={undefined} onQuit={() => undefined} />
       </SessionProvider>,
     );
-    await tick();
+    await eventually(() => expect(lastFrame()).toContain('NORRIS'));
     stdin.write('3');
-    await tick();
-    expect(lastFrame()).toContain('Track map needs F1 token');
+    await eventually(() => expect(lastFrame()).toContain('Track map needs F1 token'));
     unmount();
   });
 
@@ -266,10 +265,9 @@ describe('TrackMapView', () => {
         <TimingView token={undefined} onQuit={() => undefined} />
       </SessionProvider>,
     );
-    await tick();
+    await eventually(() => expect(lastFrame()).toContain('NORRIS'));
     stdin.write('3');
-    await tick();
-    expect(lastFrame()).toContain('Waiting for one full lap');
+    await eventually(() => expect(lastFrame()).toContain('Waiting for one full lap'));
     unmount();
   });
 });

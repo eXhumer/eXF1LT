@@ -3,10 +3,18 @@ import { render } from 'ink-testing-library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { SessionProvider } from '../src/state/SessionContext.js';
-import { FULL_TOWER_MIN, SIDEBAR_DEFAULT, SIDEBAR_MIN, sidebarMax, TimingView } from '../src/views/TimingView.js';
-import { replaySession } from './helpers.js';
+import {
+  FULL_TOWER_MIN,
+  SIDEBAR_DEFAULT,
+  SIDEBAR_MIN,
+  SIDEBAR_STEP,
+  sidebarMax,
+  TimingView,
+} from '../src/views/TimingView.js';
+import { eventually, replaySession } from './helpers.js';
 
-const tick = () => new Promise((resolve) => setTimeout(resolve, 20));
+/** For asserting that something did *not* change: give it a chance to. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
 const TAB = '\t';
 
 /** ink-testing-library's stdout is always 100 columns wide; pretend it is `width`. */
@@ -36,14 +44,16 @@ afterEach(() => {
 describe('TimingView', () => {
   it('opens on the leaderboard Laps tab, like the official site', async () => {
     const { lastFrame, unmount } = view();
-    await tick();
-    const frame = lastFrame() ?? '';
-    expect(frame).toContain('Singapore Grand Prix · Race');
+    const frame = await eventually(() => {
+      const frame = lastFrame() ?? '';
+      expect(frame).toContain('Singapore Grand Prix · Race');
+      expect(frame).toMatch(/NORRIS[\s\S]*PIASTRI[\s\S]*VERSTAPPEN/);
+      return frame;
+    });
     expect(frame).toContain('LAP 2/62');
     expect(frame).toContain('SAFETY CAR');
     expect(frame).toContain('REPLAY');
     expect(frame).toMatch(/1 LEADERBOARD {2}2 DRIVER TRACKER/);
-    expect(frame).toMatch(/NORRIS[\s\S]*PIASTRI[\s\S]*VERSTAPPEN/);
     expect(frame).toContain('IN PIT');
 
     // Grid P1 → P2 is one place lost; grid P3 → P1 two gained.
@@ -62,79 +72,90 @@ describe('TimingView', () => {
 
   it('cycles the leaderboard tabs with tab: sectors, segments, tyres', async () => {
     const { stdin, lastFrame, unmount } = view('off');
-    await tick();
+    await eventually(() => expect(lastFrame()).toContain('NORRIS'));
 
     stdin.write(TAB);
-    await tick();
-    expect(lastFrame()).toMatch(/BS1[\s\S]*SPD1/);
-    expect(lastFrame()).toContain('38.100'); // PIA's best S2
+    await eventually(() => {
+      expect(lastFrame()).toMatch(/BS1[\s\S]*SPD1/);
+      expect(lastFrame()).toContain('38.100'); // PIA's best S2
+    });
 
     stdin.write(TAB);
-    await tick();
-    expect(lastFrame()).toMatch(/SECTOR 1 NOR/); // fastest first sector
-    expect(lastFrame()).toContain('▮▮▮');
+    await eventually(() => {
+      expect(lastFrame()).toMatch(/SECTOR 1 NOR/); // fastest first sector
+      expect(lastFrame()).toContain('▮▮▮');
+    });
 
     stdin.write(TAB);
-    await tick();
-    const tyres = lastFrame() ?? '';
-    expect(tyres).toMatch(/CURRENT[\s\S]*STINT[\s\S]*TOTAL[\s\S]*PREVIOUS/);
+    const tyres = await eventually(() => {
+      const frame = lastFrame() ?? '';
+      expect(frame).toMatch(/CURRENT[\s\S]*STINT[\s\S]*TOTAL[\s\S]*PREVIOUS/);
+      return frame;
+    });
     // PIA: hard tyres, 18 laps in this stint, 21 old; a 12-lap soft stint before.
     expect(tyres.split('\n').find((line) => line.includes('PIASTRI'))).toMatch(/H·\s+18\s+21\s+\d+\s+12 S/);
 
     stdin.write('\u001B[Z'); // shift+tab back to Segments
-    await tick();
-    expect(lastFrame()).toContain('SECTOR 1');
+    await eventually(() => expect(lastFrame()).toContain('SECTOR 1'));
     unmount();
   });
 
   it('moves race control between the side, the bottom and nowhere with r', async () => {
-    const columns = widen(130);
+    widen(130);
     const { stdin, lastFrame, unmount } = view();
-    await tick();
-    expect(lastFrame()).toContain('race control: side');
-    expect(lastFrame()).toMatch(/│ RACE CONTROL/);
+    await eventually(() => {
+      expect(lastFrame()).toContain('race control: side');
+      expect(lastFrame()).toMatch(/│ RACE CONTROL/);
+    });
 
     stdin.write('r');
-    await tick();
-    expect(lastFrame()).toContain('race control: bottom');
-    expect(lastFrame()).toMatch(/^ RACE CONTROL/m);
-    expect(lastFrame()).toContain('SAFETY CAR DEPLOYED');
+    await eventually(() => {
+      expect(lastFrame()).toContain('race control: bottom');
+      expect(lastFrame()).toMatch(/^ RACE CONTROL/m);
+      expect(lastFrame()).toContain('SAFETY CAR DEPLOYED');
+    });
 
     stdin.write('r');
-    await tick();
-    expect(lastFrame()).toContain('race control: off');
-    expect(lastFrame()).not.toContain('SAFETY CAR DEPLOYED');
+    await eventually(() => {
+      expect(lastFrame()).toContain('race control: off');
+      expect(lastFrame()).not.toContain('SAFETY CAR DEPLOYED');
+    });
     unmount();
-    columns.mockRestore();
   });
 
   it('starts from --race-control and falls back to the bottom when the side does not fit', async () => {
     const { lastFrame, unmount } = view('side'); // 100 columns: no room beside the leaderboard
-    await tick();
-    expect(lastFrame()).toContain('SAFETY CAR DEPLOYED');
+    await eventually(() => expect(lastFrame()).toContain('SAFETY CAR DEPLOYED'));
     expect(lastFrame()).not.toContain('│ RACE CONTROL');
     unmount();
   });
 
   it('resizes the race control side panel with < and >', async () => {
-    const columns = widen(130);
+    widen(130);
+    const max = sidebarMax(130);
     const { stdin, lastFrame, unmount } = view();
-    await tick();
-    expect(lastFrame()).toContain(`width ${SIDEBAR_DEFAULT}`);
+    await eventually(() => expect(lastFrame()).toContain(`width ${SIDEBAR_DEFAULT}`));
 
-    for (let press = 0; press < 5; press += 1) {
+    // One press at a time, each confirmed on screen before the next.
+    let width = SIDEBAR_DEFAULT;
+    while (width < max) {
+      width = Math.min(width + SIDEBAR_STEP, max);
       stdin.write('>');
-      await tick();
+      await eventually(() => expect(lastFrame()).toContain(`width ${width}`));
     }
-    expect(lastFrame()).toContain(`width ${sidebarMax(130)}`);
+    stdin.write('>'); // already as wide as the leaderboard allows
+    await settle();
+    expect(lastFrame()).toContain(`width ${max}`);
 
-    for (let press = 0; press < 10; press += 1) {
+    while (width > SIDEBAR_MIN) {
+      width = Math.max(width - SIDEBAR_STEP, SIDEBAR_MIN);
       stdin.write('<');
-      await tick();
+      await eventually(() => expect(lastFrame()).toContain(`width ${width}`));
     }
+    stdin.write('<');
+    await settle();
     expect(lastFrame()).toContain(`width ${SIDEBAR_MIN}`);
     unmount();
-    columns.mockRestore();
   });
 
   it('caps the side panel to the terminal and hides it when it cannot fit', () => {
@@ -145,17 +166,15 @@ describe('TimingView', () => {
 
   it('seeks by lap with p and n', async () => {
     const { session, stdin, lastFrame, unmount } = view();
-    await tick();
+    await eventually(() => expect(lastFrame()).toContain('LAP 2/62'));
     stdin.write('n');
-    await tick();
-    expect(session.cursor.get('LapCount')?.CurrentLap).toBe(3);
+    await eventually(() => expect(session.cursor.get('LapCount')?.CurrentLap).toBe(3));
     stdin.write('p');
-    await tick();
+    await eventually(() => expect(session.cursor.get('LapCount')?.CurrentLap).toBe(2));
     stdin.write('p');
-    await tick();
-    expect(session.cursor.get('LapCount')?.CurrentLap).toBe(1);
-    await new Promise((resolve) => setTimeout(resolve, 150));
-    expect(lastFrame()).toContain('LAP 1/62');
+    await eventually(() => expect(session.cursor.get('LapCount')?.CurrentLap).toBe(1));
+    // The header catches up on the next throttled frame.
+    await eventually(() => expect(lastFrame()).toContain('LAP 1/62'));
     unmount();
   });
 });

@@ -5,9 +5,10 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { TvSchedule } from '../src/archive/f1tvSchedule.js';
 import { clearSessionChecks } from '../src/archive/seasonCatalog.js';
 import { FIRST_ARCHIVE_YEAR, type PickResult, PickerView, seasonYears } from '../src/views/PickerView.js';
+import { eventually } from './helpers.js';
 
-// Ink draws at most ~30 frames a second, and each season loads asynchronously.
-const tick = () => new Promise((resolve) => setTimeout(resolve, 80));
+/** For asserting that something did *not* change: give it a chance to. */
+const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
 const NOW = Date.parse('2026-10-15T12:00:00Z');
 
 function season(year: number, name: string): SeasonIndex {
@@ -93,33 +94,34 @@ describe('PickerView', () => {
     const { stdin, lastFrame, unmount } = render(
       <PickerView archive={archive} token={undefined} onPick={() => undefined} onQuit={() => undefined} now={NOW} />,
     );
-    await tick();
-    expect(lastFrame()).toContain('2026');
-    expect(lastFrame()).toContain('Singapore Grand Prix');
+    await eventually(() => {
+      expect(lastFrame()).toMatch(/◀ 2026 ▶/);
+      expect(lastFrame()).toContain('Singapore Grand Prix');
+    });
 
     stdin.write('[');
-    await tick();
-    expect(lastFrame()).toMatch(/◀ 2025 ▶/);
-    expect(lastFrame()).toContain('Bahrain Grand Prix');
+    await eventually(() => {
+      expect(lastFrame()).toMatch(/◀ 2025 ▶/);
+      expect(lastFrame()).toContain('Bahrain Grand Prix');
+    });
 
     stdin.write('[');
-    await tick();
-    expect(lastFrame()).toContain('No timing archive for 2024.');
+    await eventually(() => expect(lastFrame()).toContain('No timing archive for 2024.'));
 
     // A missing season does not get stuck: moving on clears the error.
     stdin.write('[');
-    await tick();
-    expect(lastFrame()).toMatch(/◀ 2023 ▶/);
-    expect(lastFrame()).not.toContain('No timing archive');
-    expect(lastFrame()).toContain('Bahrain Grand Prix');
+    await eventually(() => {
+      expect(lastFrame()).toMatch(/◀ 2023 ▶/);
+      expect(lastFrame()).not.toContain('No timing archive');
+      expect(lastFrame()).toContain('Bahrain Grand Prix');
+    });
 
-    for (let press = 0; press < 3; press += 1) {
+    for (const year of [2024, 2025, 2026]) {
       stdin.write(']');
-      await tick();
+      await eventually(() => expect(lastFrame()).toMatch(new RegExp(`◀ ${year} ▶`)));
     }
-    expect(lastFrame()).toMatch(/◀ 2026 ▶/);
     stdin.write(']'); // no season after the newest
-    await tick();
+    await settle();
     expect(lastFrame()).toMatch(/◀ 2026 ▶/);
     unmount();
   });
@@ -131,18 +133,25 @@ describe('PickerView archive checks', () => {
     const { stdin, lastFrame, unmount } = render(
       <PickerView archive={archive} token={undefined} onPick={(pick) => picks.push(pick)} onQuit={() => undefined} now={NOW} />,
     );
-    await tick();
-    for (let press = 0; press < 3; press += 1) {
+    await eventually(() => expect(lastFrame()).toContain('Singapore Grand Prix'));
+    for (const year of [2025, 2024, 2023]) {
       stdin.write('[');
-      await tick();
+      await eventually(() => expect(lastFrame()).toMatch(new RegExp(`◀ ${year} ▶`)));
     }
-    expect(lastFrame()).toMatch(/◀ 2023 ▶/);
+    // Wait for the archive check, or the missing race would still count as playable.
+    await eventually(() => {
+      expect(lastFrame()).toContain('Bahrain Grand Prix');
+      expect(lastFrame()).not.toContain('checking the archive');
+    });
     // Race is missing; the only playable session is qualifying.
-    stdin.write('[C'); // → past the end still lands on the last playable session
-    await tick();
+    stdin.write('\u001B[C'); // → past the end still lands on the last playable session
+    await settle();
     stdin.write('\r');
-    await tick();
-    expect(picks).toEqual([{ kind: 'replay', path: '2023/2023-03-01_Bahrain_Grand_Prix/2023-02-28_Qualifying/', title: 'Bahrain Grand Prix · Qualifying' }]);
+    await eventually(() =>
+      expect(picks).toEqual([
+        { kind: 'replay', path: '2023/2023-03-01_Bahrain_Grand_Prix/2023-02-28_Qualifying/', title: 'Bahrain Grand Prix · Qualifying' },
+      ]),
+    );
     unmount();
   });
 
@@ -151,16 +160,19 @@ describe('PickerView archive checks', () => {
     const { stdin, lastFrame, unmount } = render(
       <PickerView archive={archive} schedule={schedule} token={undefined} onPick={(pick) => picks.push(pick)} onQuit={() => undefined} now={NOW} />,
     );
-    await tick();
-    for (let press = 0; press < 2; press += 1) {
+    await eventually(() => expect(lastFrame()).toContain('Singapore Grand Prix'));
+    for (const year of [2025, 2024]) {
       stdin.write('[');
-      await tick();
+      await eventually(() => expect(lastFrame()).toMatch(new RegExp(`◀ ${year} ▶`)));
     }
-    expect(lastFrame()).toMatch(/◀ 2024 ▶/);
-    expect(lastFrame()).toMatch(/R1 +Bahrain Grand Prix +Sakhir/);
+    await eventually(() => {
+      expect(lastFrame()).toMatch(/R1 +Bahrain Grand Prix +Sakhir/);
+      expect(lastFrame()).not.toContain('checking the archive');
+    });
     stdin.write('\r');
-    await tick();
-    expect(picks[0]).toEqual({ kind: 'replay', path: '2024/2024-03-02_Bahrain_Grand_Prix/2024-03-02_Race/', title: 'Bahrain Grand Prix · Race' });
+    await eventually(() =>
+      expect(picks[0]).toEqual({ kind: 'replay', path: '2024/2024-03-02_Bahrain_Grand_Prix/2024-03-02_Race/', title: 'Bahrain Grand Prix · Race' }),
+    );
     unmount();
   });
 });
