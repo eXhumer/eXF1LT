@@ -1,0 +1,51 @@
+{
+  "name": "exf1lt",
+  "version": "0.1.0",
+  "description": "F1 live timing in your terminal: live feed, archive replay and local recordings",
+  "type": "module",
+  "author": {
+    "name": "eXhumer",
+    "email": "github@exhumer.cc"
+  },
+  "license": "MIT",
+  "bin": {
+    "exf1lt": "./dist/cli.mjs"
+  },
+  "files": [
+    "dist"
+  ],
+  "engines": {
+    "node": ">=22.19.0"
+  },
+  "scripts": {
+    "build": "tsdown",
+    "build:sea": "node scripts/build-sea.mjs",
+    "start": "node dist/cli.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "test": "vitest run --reporter=verbose",
+    "test:watch": "vitest"
+  },
+  "keywords": [
+    "f1",
+    "formula1",
+    "livetiming",
+    "tui",
+    "ink"
+  ],
+  "dependencies": {
+    "@exhumer/f1-live-timing": "^2.1.0",
+    "@exhumer/f1tv-api": "^3.2.0",
+    "@exhumer/signalr-client": "^3.0.0",
+    "commander": "^15.0.0",
+    "ink": "^8.0.0",
+    "react": "^19.3.1"
+  },
+  "devDependencies": {
+    "@types/node": "^26.6.5",
+    "@types/react": "^19.3.0",
+    "ink-testing-library": "^4.0.0",
+    "tsdown": "^0.23.1",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.4"
+  }
+}

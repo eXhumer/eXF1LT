@@ -1,0 +1,174 @@
+name: Binaries
+
+# Builds eXF1LT as a Node single executable (scripts/build-sea.mjs) on each
+# platform's own runner, since `node --build-sea` copies the Node binary it runs
+# on. A tag push (v*) also publishes the archives as a GitHub release.
+
+on:
+  push:
+    tags:
+      - "v*"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  # --build-sea needs a recent Node; it also becomes the runtime inside each binary.
+  NODE_VERSION: 26
+
+jobs:
+  build:
+    name: Build ${{ matrix.target }}
+    runs-on: ${{ matrix.runner }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: linux-x64
+            runner: ubuntu-24.04
+          - target: linux-arm64
+            runner: ubuntu-24.04-arm
+          - target: macos-arm64
+            runner: macos-26
+          - target: macos-x64
+            runner: macos-26-intel
+          - target: windows-x64
+            runner: windows-2025
+          - target: windows-arm64
+            runner: windows-11-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v7
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build single executable
+        run: npm run build:sea
+
+      - name: Check the architecture
+        shell: bash
+        run: |
+          expected="${{ matrix.target }}"
+          actual="$(node -p 'process.platform.replace("win32", "windows").replace("darwin", "macos") + "-" + process.arch')"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::Runner built $actual, expected $expected"
+            exit 1
+          fi
+
+      - name: Smoke test (Unix)
+        if: runner.os != 'Windows'
+        env:
+          EXF1LT_CONFIG_DIR: ${{ runner.temp }}/exf1lt
+        run: |
+          ./dist-sea/exf1lt --help
+          ./dist-sea/exf1lt token status
+
+      - name: Smoke test (Windows)
+        if: runner.os == 'Windows'
+        env:
+          EXF1LT_CONFIG_DIR: ${{ runner.temp }}\exf1lt
+        # pwsh only fails a step on the last command's exit code, so check each one.
+        run: |
+          .\dist-sea\exf1lt.exe --help
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+          .\dist-sea\exf1lt.exe token status
+          if ($LASTEXITCODE) { exit $LASTEXITCODE }
+
+      # Artifacts drop the executable bit, so archive before uploading.
+      - name: Package (Unix)
+        if: runner.os != 'Windows'
+        run: |
+          mkdir -p out
+          tar -czf "out/exf1lt-${{ matrix.target }}.tar.gz" -C dist-sea exf1lt
+
+      - name: Package (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          New-Item -ItemType Directory -Force out | Out-Null
+          Compress-Archive -Path dist-sea\exf1lt.exe -DestinationPath "out\exf1lt-${{ matrix.target }}.zip"
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: exf1lt-${{ matrix.target }}
+          path: out/*
+          if-no-files-found: error
+
+  macos-universal:
+    name: Build macos-universal
+    needs: build
+    runs-on: macos-26
+
+    steps:
+      - name: Download macOS builds
+        uses: actions/download-artifact@v8
+        with:
+          pattern: exf1lt-macos-*
+          path: in
+          merge-multiple: true
+
+      - name: Merge into a universal binary
+        run: |
+          mkdir -p arm64 x64 out
+          tar -xzf in/exf1lt-macos-arm64.tar.gz -C arm64
+          tar -xzf in/exf1lt-macos-x64.tar.gz -C x64
+          lipo -create arm64/exf1lt x64/exf1lt -output exf1lt
+          # Each slice keeps its own ad hoc signature; sign the fat binary as a whole too.
+          codesign --sign - --force exf1lt
+          lipo -info exf1lt
+          ./exf1lt --help
+          # Run the Intel slice too, when Rosetta is available on the runner.
+          if arch -x86_64 /usr/bin/true 2>/dev/null; then arch -x86_64 ./exf1lt --help; fi
+          tar -czf out/exf1lt-macos-universal.tar.gz exf1lt
+
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: exf1lt-macos-universal
+          path: out/*
+          if-no-files-found: error
+
+  release:
+    name: Publish release
+    if: startsWith(github.ref, 'refs/tags/v')
+    needs: [build, macos-universal]
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+
+    steps:
+      - name: Download every build
+        uses: actions/download-artifact@v8
+        with:
+          pattern: exf1lt-*
+          path: dist
+          merge-multiple: true
+
+      - name: Checksums
+        working-directory: dist
+        run: sha256sum exf1lt-* | tee SHA256SUMS
+
+      - name: Create release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ github.ref_name }}
+        run: |
+          gh release create "$TAG" dist/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "$TAG" \
+            --generate-notes \
+            --verify-tag

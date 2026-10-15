@@ -1,0 +1,7 @@
+/dist/
+/dist-sea/
+/node_modules/
+/.vscode/
+/recordings/
+._*
+.DS_Store
