@@ -57,9 +57,35 @@ The official site draws the track from a 3D model made for each circuit. eXF1LT 
 the outline from one clean lap of position data instead, so it works for every circuit
 without extra downloads.
 
-### F1 subscription token
+### F1 tokens
 
-Live `CarData` and `Position` need your F1 subscription token. Give it once:
+The quickest way to set both tokens up is to log in once in a browser window:
+
+```sh
+exf1lt login
+```
+
+It opens Chrome, Edge, Brave (including Brave Origin) or Chromium (found automatically on macOS and Windows;
+`--browser <path>` or `F1_BROWSER` picks another) on the F1 account page with a
+throwaway profile. Log in as usual; once the login completes the window closes and both
+tokens are cached. Nothing is typed or pasted, and nothing of the browser profile is
+kept. F1 only allows its own redirect address for this login, so the command reads the
+token response through the browser's DevTools connection instead of running a local
+callback.
+
+Brave Origin asks for its purchase ID in every new profile (and each activation counts
+against Brave's monthly limit), so for it alone the command keeps one profile of its own in
+the config directory (`brave-origin-profile`): enter the purchase ID the first time only.
+The F1 session is wiped from that profile before and after each login.
+
+The tokens last about four days. Run `exf1lt login` again when
+`exf1lt token status` says they expired. To set them by hand instead:
+
+F1 takes two tokens. Today both are the same JWT, the `subscriptionToken` of your F1 login
+(`exf1lt login` saves it as both), so a missing authorization token falls back to the
+subscription token. They are kept apart in case F1 splits them:
+
+**Subscription (ascendon) token**: live `CarData` and `Position` need it. Give it once:
 
 ```sh
 exf1lt --live --token-file ./token.txt
@@ -71,9 +97,24 @@ or `~/.config/exf1lt/auth.json` elsewhere (`EXF1LT_CONFIG_DIR` overrides), and r
 on later runs. `F1_TOKEN` takes precedence over the cache and is never written to it.
 An expired cached token is ignored: live timing still works, without telemetry.
 
+**Authorization token**: the F1 static archive (`livetiming.formula1.com/static/...`,
+used by the session picker and `--replay`) answers 401 without an `Authorization`
+header. Give it once:
+
 ```sh
-exf1lt token status
-exf1lt token clear
+exf1lt --auth-token-file ./authorization.txt
+```
+
+The file holds the token, optionally as `Bearer <token>` or a pasted
+`Authorization: Bearer <token>` line. It is cached next to the other token in
+`authorization.json`, and `F1_AUTH_TOKEN` overrides the cache without being written to it.
+
+The two tokens are independent and can be combined, e.g.
+`exf1lt --live --token-file ./token.txt --auth-token-file ./authorization.txt`.
+
+```sh
+exf1lt token status   # both tokens
+exf1lt token clear    # both tokens
 ```
 
 ### Keys

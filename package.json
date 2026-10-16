@@ -1,6 +1,6 @@
 {
   "name": "exf1lt",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "F1 live timing in your terminal: live feed, archive replay and local recordings",
   "type": "module",
   "author": {
@@ -46,6 +46,9 @@
     "ink-testing-library": "^4.0.0",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
-    "vitest": "^5.0.4"
+    "vitest": "^5.0.5"
+  },
+  "allowScripts": {
+    "fsevents@2.3.3": true
   }
 }

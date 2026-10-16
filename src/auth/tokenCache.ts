@@ -5,6 +5,8 @@ import { join } from 'node:path';
 import { jwtExpiry } from './jwt.js';
 
 export const AUTH_FILE = 'auth.json';
+/** The `Authorization` header token for the static archive, cached apart from the ascendon token. */
+export const AUTHORIZATION_FILE = 'authorization.json';
 
 export interface CachedToken {
   readonly token: string;
@@ -24,10 +26,10 @@ export function configDir(env: NodeJS.ProcessEnv = process.env, platform = proce
   return join(env['XDG_CONFIG_HOME'] ?? join(homedir(), '.config'), 'exf1lt');
 }
 
-export async function readCachedToken(dir: string): Promise<CachedToken | undefined> {
+export async function readCachedToken(dir: string, file = AUTH_FILE): Promise<CachedToken | undefined> {
   let text: string;
   try {
-    text = await readFile(join(dir, AUTH_FILE), 'utf8');
+    text = await readFile(join(dir, file), 'utf8');
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return undefined;
     throw error;
@@ -42,7 +44,7 @@ export async function readCachedToken(dir: string): Promise<CachedToken | undefi
   }
 }
 
-export async function writeCachedToken(dir: string, token: string, now = Date.now()): Promise<CachedToken> {
+export async function writeCachedToken(dir: string, token: string, now = Date.now(), file = AUTH_FILE): Promise<CachedToken> {
   const expiry = jwtExpiry(token);
   const cached: CachedToken = {
     token,
@@ -50,13 +52,13 @@ export async function writeCachedToken(dir: string, token: string, now = Date.no
     savedAt: new Date(now).toISOString(),
   };
   await mkdir(dir, { recursive: true });
-  await writeFile(join(dir, AUTH_FILE), `${JSON.stringify(cached, null, 2)}\n`, { mode: 0o600 });
+  await writeFile(join(dir, file), `${JSON.stringify(cached, null, 2)}\n`, { mode: 0o600 });
   return cached;
 }
 
-export async function clearCachedToken(dir: string): Promise<boolean> {
+export async function clearCachedToken(dir: string, file = AUTH_FILE): Promise<boolean> {
   try {
-    await rm(join(dir, AUTH_FILE));
+    await rm(join(dir, file));
     return true;
   } catch (error) {
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') return false;

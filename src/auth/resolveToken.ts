@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises';
 
 import { jwtExpiry } from './jwt.js';
 import { parseTokenFile, TokenFileError } from './parseTokenFile.js';
-import { readCachedToken, writeCachedToken } from './tokenCache.js';
+import { AUTH_FILE, readCachedToken, writeCachedToken } from './tokenCache.js';
 
 /** Warn about a token this close to expiring. */
 export const EXPIRY_WARNING_MS = 3 * 24 * 60 * 60 * 1000;
@@ -26,6 +26,10 @@ export interface ResolveTokenOptions {
   /** Directory of the token cache. */
   readonly cacheDir: string;
   readonly now?: number;
+  /** Cache file inside `cacheDir`. Default: the ascendon token's `auth.json`. */
+  readonly cacheFile?: string;
+  /** Extracts the token from the text of `tokenFile`. Default: {@link parseTokenFile}. */
+  readonly parse?: (text: string) => string;
 }
 
 /**
@@ -36,20 +40,22 @@ export interface ResolveTokenOptions {
  */
 export async function resolveToken(options: ResolveTokenOptions): Promise<TokenStatus> {
   const now = options.now ?? Date.now();
+  const cacheFile = options.cacheFile ?? AUTH_FILE;
+  const parse = options.parse ?? parseTokenFile;
 
   if (options.tokenFile) {
-    const token = parseTokenFile(await readFile(options.tokenFile, 'utf8'));
+    const token = parse(await readFile(options.tokenFile, 'utf8'));
     const status = tokenStatus(token, 'file', now);
     if (status.state === 'expired') {
       throw new TokenFileError(`The token in ${options.tokenFile} expired on ${formatDate(status.expiresAt!)}.`);
     }
-    await writeCachedToken(options.cacheDir, token, now);
+    await writeCachedToken(options.cacheDir, token, now, cacheFile);
     return status;
   }
 
   if (options.envToken) return tokenStatus(options.envToken.trim(), 'env', now);
 
-  const cached = await readCachedToken(options.cacheDir);
+  const cached = await readCachedToken(options.cacheDir, cacheFile);
   if (cached) return tokenStatus(cached.token, 'cache', now);
 
   return { token: undefined, source: 'none', state: 'none', expiresAt: undefined };
