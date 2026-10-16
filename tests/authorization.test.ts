@@ -4,7 +4,7 @@ import { join } from 'node:path';
 
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
 
-import { archiveCredential, authorizationHeaders, parseAuthorizationFile, resolveAuthorization } from '../src/auth/authorization.js';
+import { archiveCredential, archiveOptions, parseAuthorizationFile, resolveAuthorization } from '../src/auth/authorization.js';
 import { TokenFileError } from '../src/auth/parseTokenFile.js';
 import { resolveToken } from '../src/auth/resolveToken.js';
 import { AUTH_FILE, AUTHORIZATION_FILE, clearCachedToken, readCachedToken } from '../src/auth/tokenCache.js';
@@ -27,16 +27,14 @@ describe('parseAuthorizationFile', () => {
   });
 });
 
-describe('authorizationHeaders', () => {
-  it('sends a Bearer Authorization header', () => {
-    expect(authorizationHeaders({ token: 'abc', source: 'env', state: 'valid', expiresAt: undefined })).toEqual({
-      Authorization: 'Bearer abc',
-    });
+describe('archiveOptions', () => {
+  it('passes the token as authToken', () => {
+    expect(archiveOptions({ token: 'abc', source: 'env', state: 'valid', expiresAt: undefined })).toEqual({ authToken: 'abc' });
   });
 
-  it('sends nothing without a usable token', () => {
-    expect(authorizationHeaders(undefined)).toEqual({});
-    expect(authorizationHeaders({ token: undefined, source: 'cache', state: 'expired', expiresAt: 1 })).toEqual({});
+  it('passes nothing without a usable token', () => {
+    expect(archiveOptions(undefined)).toEqual({});
+    expect(archiveOptions({ token: undefined, source: 'cache', state: 'expired', expiresAt: 1 })).toEqual({});
   });
 });
 

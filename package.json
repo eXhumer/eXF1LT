@@ -1,6 +1,6 @@
 {
   "name": "exf1lt",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "F1 live timing in your terminal: live feed, archive replay and local recordings",
   "type": "module",
   "author": {
@@ -33,9 +33,8 @@
     "ink"
   ],
   "dependencies": {
-    "@exhumer/f1-live-timing": "^2.1.0",
+    "@exhumer/f1-live-timing": "^2.3.0",
     "@exhumer/f1tv-api": "^3.2.0",
-    "@exhumer/signalr-client": "^3.0.0",
     "commander": "^15.0.0",
     "ink": "^8.0.0",
     "react": "^19.3.1"

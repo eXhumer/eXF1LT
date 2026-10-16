@@ -1,16 +1,4 @@
-import {
-  decodeTopicData,
-  fromWireTopic,
-  type HubConnectionLike,
-  isCompressedTopic,
-  isPlainObject,
-  LiveClient,
-  type LiveTimingMessage,
-  Recorder,
-  snapshotTime,
-  Timeline,
-} from '@exhumer/f1-live-timing';
-import { HubConnectionBuilder, NullLogger } from '@exhumer/signalr-client';
+import { type HubConnectionLike, LiveClient, Recorder, Timeline } from '@exhumer/f1-live-timing';
 
 import type { Session } from './session.js';
 
@@ -25,38 +13,22 @@ export interface LiveSourceOptions {
 /**
  * Connect to the live feed and follow it.
  *
- * `LiveClient.connect()` emits the subscription snapshot before it resolves,
- * so a listener attached afterwards never sees it. The connection is wrapped
- * to capture the first `Subscribe` result, and the snapshot is inserted into
- * the timeline (and recording) by hand.
+ * `LiveClient.connect()` delivers the subscription snapshot before it
+ * resolves, so the timeline and recording start from `live.snapshot`.
  */
 export async function openLive(options: LiveSourceOptions = {}): Promise<Session> {
   const raw = options.recordDir !== undefined;
-  let snapshot: unknown;
-  const baseFactory = options.connectionFactory ?? defaultConnection;
-  const connectionFactory = (url: string): HubConnectionLike => {
-    const connection = baseFactory(url);
-    const invoke = connection.invoke.bind(connection);
-    connection.invoke = (async (method: string, ...args: unknown[]) => {
-      const result = await invoke<unknown>(method, ...args);
-      if (method === 'Subscribe' && snapshot === undefined) snapshot = result ?? null;
-      return result;
-    }) as HubConnectionLike['invoke'];
-    return connection;
-  };
-
   const live = await LiveClient.connect({
     ...(options.authToken ? { authToken: options.authToken } : {}),
     raw,
-    connectionFactory,
+    ...(options.connectionFactory ? { connectionFactory: options.connectionFactory } : {}),
   });
 
   const timeline = Timeline.fromLive(live);
   const recorder = options.recordDir ? await Recorder.create(options.recordDir) : undefined;
-  const initial = snapshotMessages(snapshot, raw);
-  timeline.insert(initial);
+  timeline.insert(live.snapshot);
   if (recorder) {
-    for (const message of initial) recorder.write(message);
+    for (const message of live.snapshot) recorder.write(message);
     live.subscribeMessages((message) => recorder.write(message));
   }
 
@@ -78,27 +50,4 @@ export async function openLive(options: LiveSourceOptions = {}): Promise<Session
       await recorder?.close();
     },
   };
-}
-
-/** The messages `LiveClient` builds from a `Subscribe` snapshot, rebuilt here. */
-export function snapshotMessages(snapshot: unknown, raw: boolean): LiveTimingMessage[] {
-  if (!isPlainObject(snapshot)) return [];
-  const decoded = Object.entries(snapshot).map(([wire, value]) => [wire, value, decodeTopicData(wire, value)] as const);
-  const utc = snapshotTime(new Map(decoded.map(([wire, , data]) => [fromWireTopic(wire), data])));
-  const messages: LiveTimingMessage[] = [];
-  for (const [wire, value, data] of decoded) {
-    if (!isPlainObject(data)) continue;
-    const message: LiveTimingMessage = { topic: fromWireTopic(wire), utc, data: { ...data, _kf: true } };
-    messages.push(raw && isCompressedTopic(wire) && typeof value === 'string' ? { ...message, raw: value } : message);
-  }
-  return messages;
-}
-
-function defaultConnection(url: string): HubConnectionLike {
-  return new HubConnectionBuilder()
-    .withUrl(url)
-    .withAutomaticReconnect()
-    .configureLogging(new NullLogger())
-    .withCookies()
-    .build();
 }

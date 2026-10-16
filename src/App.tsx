@@ -2,6 +2,7 @@ import type { ArchiveClient } from '@exhumer/f1-live-timing';
 import { Box, Text, useApp, useInput } from 'ink';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
+import { describeError } from './archive/describeError.js';
 import type { TokenStatus } from './auth/resolveToken.js';
 import { openLive } from './sources/live.js';
 import { type LoadProgress, openRecording, openReplay } from './sources/replay.js';
@@ -54,7 +55,7 @@ export function App({ archive, schedule, start, token, openSession, raceControl 
           sessionRef.current = session;
           setScreen({ name: 'session', session });
         })
-        .catch((error: unknown) => setScreen({ name: 'error', message: error instanceof Error ? error.message : String(error) }));
+        .catch((error: unknown) => setScreen({ name: 'error', message: describeError(error) }));
     },
     [archive, token, openSession],
   );

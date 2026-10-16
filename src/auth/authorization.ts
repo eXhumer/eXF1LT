@@ -1,4 +1,4 @@
-import { ArchiveClient } from '@exhumer/f1-live-timing';
+import { ArchiveClient, type ArchiveClientOptions } from '@exhumer/f1-live-timing';
 
 import { resolveToken, type ResolveTokenOptions, type TokenStatus } from './resolveToken.js';
 import { TokenFileError } from './parseTokenFile.js';
@@ -45,11 +45,6 @@ export function resolveAuthorization(options: ResolveAuthorizationOptions): Prom
   return resolveToken({ ...options, cacheFile: AUTHORIZATION_FILE, parse: parseAuthorizationFile });
 }
 
-/** The header sent with every archive request; empty without a usable token. */
-export function authorizationHeaders(authorization: TokenStatus | undefined): Record<string, string> {
-  return authorization?.token ? { Authorization: `Bearer ${authorization.token}` } : {};
-}
-
 /**
  * The token for the archive: the authorization token, else the ascendon token
  * (the same JWT today), so a user who only ever gave `--token-file` still works.
@@ -58,7 +53,12 @@ export function archiveCredential(authorization: TokenStatus | undefined, ascend
   return authorization?.token ? authorization : ascendon?.token ? ascendon : authorization;
 }
 
-/** An `ArchiveClient` that sends the authorization token with every request. */
+/** `ArchiveClient` options that send the token (as `authToken`), or none when there is no usable token. */
+export function archiveOptions(authorization: TokenStatus | undefined): ArchiveClientOptions {
+  return authorization?.token ? { authToken: authorization.token } : {};
+}
+
+/** An `ArchiveClient` that sends the token with every request. */
 export function createArchiveClient(authorization: TokenStatus | undefined): ArchiveClient {
-  return new ArchiveClient({ headers: authorizationHeaders(authorization) });
+  return new ArchiveClient(archiveOptions(authorization));
 }

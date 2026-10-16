@@ -2,6 +2,7 @@ import type { ArchiveClient } from '@exhumer/f1-live-timing';
 import { Box, Text, useInput, useWindowSize } from 'ink';
 import { useEffect, useMemo, useState } from 'react';
 
+import { describeError } from '../archive/describeError.js';
 import type { TvSchedule } from '../archive/f1tvSchedule.js';
 import {
   type Availability,
@@ -96,7 +97,7 @@ export function PickerView({ archive, schedule, token, onPick, onQuit, now = Dat
         );
       })
       .catch((cause: unknown) => {
-        if (!controller.signal.aborted) setError(`Could not load ${year}: ${String(cause)}`);
+        if (!controller.signal.aborted) setError(`Could not load ${year}: ${describeError(cause)}`);
       });
     return () => controller.abort();
   }, [archive, schedule, year]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -236,8 +237,8 @@ function shortName(name: string): string {
 }
 
 export function tokenLine(token: TokenStatus | undefined): string {
-  if (!token || token.state === 'none') return '🔑 no token: live timing only, no car data/positions';
-  if (token.state === 'expired') return '⚠ token expired: refresh with --token-file <path>';
+  if (!token || token.state === 'none') return '🔑 no token (exf1lt login): no car data/positions';
+  if (token.state === 'expired') return '⚠ token expired: run exf1lt login';
   if (!token.expiresAt) return `🔑 token from ${token.source}`;
   return `🔑 token valid until ${new Date(token.expiresAt).toISOString().slice(0, 10)}`;
 }

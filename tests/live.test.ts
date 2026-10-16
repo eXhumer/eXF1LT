@@ -1,7 +1,7 @@
 import type { HubConnectionLike } from '@exhumer/f1-live-timing';
 import { describe, expect, it } from 'vitest';
 
-import { openLive, snapshotMessages } from '../src/sources/live.js';
+import { openLive } from '../src/sources/live.js';
 
 /** A hub that answers `Subscribe` with a snapshot and lets the test push feed updates. */
 function fakeHub(snapshot: Record<string, unknown>) {
@@ -35,22 +35,5 @@ describe('openLive', () => {
     hub.feed('LapCount', { CurrentLap: 11 }, '2026-10-11T12:01:00Z');
     expect(session.cursor.get('LapCount')).toEqual({ CurrentLap: 11, TotalLaps: 62 });
     await session.close();
-  });
-});
-
-describe('snapshotMessages', () => {
-  it('stamps every topic as a keyframe at the snapshot time', () => {
-    const messages = snapshotMessages(
-      { ExtrapolatedClock: { Utc: '2026-10-11T12:00:00Z', Remaining: '01:00:00', Extrapolating: true }, Junk: 5 },
-      false,
-    );
-    expect(messages).toEqual([
-      {
-        topic: 'ExtrapolatedClock',
-        utc: Date.parse('2026-10-11T12:00:00Z'),
-        data: { Utc: '2026-10-11T12:00:00Z', Remaining: '01:00:00', Extrapolating: true, _kf: true },
-      },
-    ]);
-    expect(snapshotMessages(null, false)).toEqual([]);
   });
 });
