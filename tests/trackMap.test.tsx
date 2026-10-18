@@ -252,7 +252,7 @@ describe('TrackMapView', () => {
       </SessionProvider>,
     );
     await eventually(() => expect(lastFrame()).toContain('NORRIS'));
-    stdin.write('3');
+    stdin.write('2');
     await eventually(() => expect(lastFrame()).toContain('Track map needs F1 token'));
     unmount();
   });
@@ -266,7 +266,7 @@ describe('TrackMapView', () => {
       </SessionProvider>,
     );
     await eventually(() => expect(lastFrame()).toContain('NORRIS'));
-    stdin.write('3');
+    stdin.write('2');
     await eventually(() => expect(lastFrame()).toContain('Waiting for one full lap'));
     unmount();
   });

@@ -27,6 +27,14 @@ The layout follows the official live timing page:
   **Sectors**, **Head to Head** (pin a driver with `h`, select another) and
   **Telemetry** (speed, RPM, gear, throttle and brake of both). Lapped cars are labelled
   with their deficit, e.g. `ALO 1L`.
+- **3 Pit & Tyres**, with the tabs **Pit Stops** (every stop with its lap, the time
+  stationary and the time in the pit lane, and the fastest stop of the session in
+  purple) and **Tyre History** (each driver's stints as bars scaled to the race
+  distance, with the compound and laps in each). The stop times are only in archived
+  sessions; on the live feed the stop laps are rebuilt from the tyre stints.
+- **4 Championship**, with the tabs **Drivers** and **Constructors**: F1's prediction of
+  the standings if the session ended now, with places gained or lost, the points
+  before the session, the predicted points and the points each would add.
 
 Race control messages sit in a side panel by default. `r` moves them under the timing
 and then hides them, and `--race-control` picks where they start. With the panel hidden,
@@ -121,7 +129,7 @@ exf1lt token clear    # both tokens
 
 | Key | Action |
 | --- | --- |
-| `1` / `2` | Leaderboard / Driver Tracker |
+| `1` `2` `3` `4` | Leaderboard / Driver Tracker / Pit & Tyres / Championship |
 | `tab` / `⇧tab` | next / previous tab of the screen |
 | `↑` `↓` | select driver (highlighted in the tables and on the map) |
 | `h` | pin the selected driver for Head to Head and Telemetry (again to unpin) |

@@ -1,6 +1,6 @@
 {
   "name": "exf1lt",
-  "version": "0.2.1",
+  "version": "0.3.0",
   "description": "F1 live timing in your terminal: live feed, archive replay and local recordings",
   "type": "module",
   "author": {

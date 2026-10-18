@@ -13,6 +13,8 @@ export const UI_TOPICS: readonly Topic[] = [
   'TimingAppData',
   'TimingStats',
   'RaceControlMessages',
+  'PitStopSeries',
+  'ChampionshipPrediction',
   'CarData',
   'Position',
 ];
