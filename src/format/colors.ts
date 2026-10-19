@@ -1,6 +1,6 @@
 import { TrackStatusCode } from '@exhumer/f1-live-timing';
 
-import type { MarkerKind } from '../state/laps.js';
+import type { TrackPeriodKind } from '../state/periods.js';
 import type { Tone } from '../state/timingRows.js';
 
 export const TONE_COLORS: Record<Tone, string | undefined> = {
@@ -77,11 +77,18 @@ export function flagColor(flag: string | undefined): string | undefined {
   }
 }
 
-export const MARKER_STYLES: Record<MarkerKind, { char: string; color: string }> = {
-  yellow: { char: '▲', color: '#ffd12e' },
-  sc: { char: 'S', color: '#ffd12e' },
-  vsc: { char: 'V', color: '#ffd12e' },
-  red: { char: 'R', color: '#e8002d' },
+/**
+ * Track conditions drawn into the scrubber's bar: a single line for the milder
+ * condition and a double one for the stronger (yellow / double yellow, VSC /
+ * safety car), and a solid block for a red flag, which a red line would hide
+ * in the played part of the bar.
+ */
+export const PERIOD_STYLES: Record<TrackPeriodKind, { char: string; color: string }> = {
+  yellow: { char: '━', color: '#ffd12e' },
+  'double-yellow': { char: '═', color: '#ffd12e' },
+  vsc: { char: '━', color: '#ff9f0a' },
+  sc: { char: '═', color: '#ff9f0a' },
+  red: { char: '█', color: '#e8002d' },
 };
 
 /** `{ color }` for Ink's `<Text>`, or nothing when there is no color (keeps exactOptionalPropertyTypes happy). */

@@ -1,8 +1,9 @@
 import { parseUtc } from '@exhumer/f1-live-timing';
 import { Box, Text, useInput, useWindowSize } from 'ink';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import type { TokenStatus } from '../auth/resolveToken.js';
+import { exportTelemetry } from '../export/telemetry.js';
 import { HeaderBar } from '../components/HeaderBar.js';
 import { type Hint, KeyHints } from '../components/KeyHints.js';
 import { RaceControlFeed } from '../components/RaceControlFeed.js';
@@ -50,9 +51,14 @@ interface Props {
   readonly onBack?: (() => void) | undefined;
   /** Initial race control placement (`--race-control`). */
   readonly raceControl?: RaceControlPlacement;
+  /** Where `e` writes the selected driver's telemetry report (`--export-dir`). */
+  readonly exportDir?: string;
 }
 
-export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Props) {
+/** How long the result of an export stays in the footer, unless a key is pressed first. */
+const NOTICE_MS = 8_000;
+
+export function TimingView({ token, onQuit, onBack, raceControl = 'side', exportDir = '.' }: Props) {
   const session = useSession();
   const playback = usePlayback();
   const { columns, rows: height } = useWindowSize();
@@ -60,9 +66,14 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
   const appData = useTopic('TimingAppData');
   const drivers = useTopic('DriverList');
   const stats = useTopic('TimingStats');
+  // Drivers marked with m for the next export, in the order they were marked.
+  const [marked, setMarked] = useState<readonly string[]>([]);
   const timingRows = useMemo(
-    () => buildTimingRows({ timingData, appData, drivers, stats }),
-    [timingData, appData, drivers, stats],
+    () =>
+      buildTimingRows({ timingData, appData, drivers, stats }).map((row) =>
+        marked.includes(row.number) ? { ...row, marked: true } : row,
+      ),
+    [timingData, appData, drivers, stats, marked],
   );
   const pitSeries = useTopic('PitStopSeries');
   const pitTable = useMemo(() => buildPitStops(timingRows, pitSeries), [timingRows, pitSeries]);
@@ -80,7 +91,34 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
   const [placement, setPlacement] = useState<RaceControlPlacement>(raceControl);
   const [sidebarRequested, setSidebarRequested] = useState(SIDEBAR_DEFAULT);
   const [lapInput, setLapInput] = useState<string | undefined>();
+  const [notice, setNotice] = useState<{ text: string; error: boolean } | undefined>();
   const focus = selected ?? timingRows[0]?.number;
+
+  useEffect(() => {
+    if (!notice) return;
+    const timer = setTimeout(() => setNotice(undefined), NOTICE_MS);
+    return () => clearTimeout(timer);
+  }, [notice]);
+
+  const tlaOf = (number: string) => timingRows.find((row) => row.number === number)?.tla ?? number;
+  const toggleMark = (number: string) =>
+    setMarked((value) => (value.includes(number) ? value.filter((item) => item !== number) : [...value, number]));
+
+  // The marked drivers (the first marked is the reference), or the selected one.
+  const exportMarked = () => {
+    const numbers = marked.length > 0 ? marked : focus ? [focus] : [];
+    if (numbers.length === 0) return;
+    const label = numbers.length > 3 ? `${numbers.length} drivers'` : numbers.map(tlaOf).join(', ');
+    setNotice({ text: `Exporting ${label} telemetry…`, error: false });
+    exportTelemetry(session.timeline, numbers, exportDir).then(
+      ({ file, skipped }) =>
+        setNotice({
+          text: `${label} telemetry saved to ${file}${skipped.length ? ` (no car data for ${skipped.join(', ')})` : ''}`,
+          error: false,
+        }),
+      (error: unknown) => setNotice({ text: error instanceof Error ? error.message : String(error), error: true }),
+    );
+  };
 
   const maxSidebar = sidebarMax(columns);
   const showSide = placement === 'side' && maxSidebar > 0;
@@ -89,8 +127,8 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
   const showBottom = placement === 'bottom' || (placement === 'side' && !showSide);
   const showTransport = session.kind !== 'live' || !playback.following;
   const bottomHeight = showBottom ? BOTTOM_MESSAGES + 1 : 0;
-  // Header (2) + divider, tab bar, footer divider, transport (2) or nothing, hints.
-  const bodyHeight = Math.max(4, height - 2 - 1 - 1 - 1 - (showTransport ? 2 : 0) - 1 - bottomHeight);
+  // Header (2) + divider, tab bar, footer divider, transport (1) or nothing, hints.
+  const bodyHeight = Math.max(4, height - 2 - 1 - 1 - 1 - (showTransport ? 1 : 0) - 1 - bottomHeight);
   const mainWidth = columns - (showSide ? sidebarWidth : 0);
 
   const tabs: readonly string[] = {
@@ -123,6 +161,8 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
       return;
     }
 
+    // Any key puts the hints back in place of an export notice.
+    setNotice(undefined);
     if (input === 'q') onQuit();
     else if (key.escape && onBack) onBack();
     else if (input === '1') setScreen('leaderboard');
@@ -150,6 +190,9 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
     else if (input === '[') playback.slower();
     else if (input === 'j') setLapInput('');
     else if (input === 'L') playback.goLive();
+    else if (input === 'e') exportMarked();
+    else if (input === 'm' && focus) toggleMark(focus);
+    else if (input === 'M') setMarked([]);
   });
 
   const hints: Hint[] = [
@@ -166,6 +209,8 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
   if (session.kind === 'live' && !playback.following) hints.push(['L', 'go live']);
   hints.push(['r', `race control: ${placement}`]);
   if (showSide) hints.push(['< >', `width ${sidebarWidth}`]);
+  hints.push(['m', 'mark'], ['e', marked.length > 0 ? `export ${marked.length} marked` : 'export']);
+  if (marked.length > 0) hints.push(['M', 'clear marks']);
   if (onBack) hints.push(['esc', 'sessions']);
   hints.push(['q', 'quit']);
 
@@ -233,6 +278,12 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side' }: Prop
           <Text>
             Jump to lap: <Text bold>{lapInput}</Text>
             <Text dimColor>▏ enter go · esc cancel</Text>
+          </Text>
+        </Box>
+      ) : notice ? (
+        <Box paddingX={1}>
+          <Text wrap="truncate" {...colorProp(notice.error ? '#e8002d' : undefined)}>
+            {notice.text}
           </Text>
         </Box>
       ) : (

@@ -45,7 +45,10 @@ export const position: RowColumn = {
 export const teamBar: RowColumn = {
   header: '',
   width: 1,
-  render: (row) => span(row.status === 'retired' ? '✕' : '▌', { color: row.status === 'retired' ? RED : row.teamColour }),
+  render: (row) =>
+    row.marked
+      ? span('●', { color: row.teamColour, bold: true })
+      : span(row.status === 'retired' ? '✕' : '▌', { color: row.status === 'retired' ? RED : row.teamColour }),
 };
 
 export function driver(width: number): RowColumn {

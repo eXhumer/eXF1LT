@@ -1,3 +1,7 @@
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+
 import { Text } from 'ink';
 import { render } from 'ink-testing-library';
 import { afterEach, describe, expect, it, vi } from 'vitest';
@@ -11,7 +15,7 @@ import {
   sidebarMax,
   TimingView,
 } from '../src/views/TimingView.js';
-import { eventually, replaySession } from './helpers.js';
+import { eventually, raceTimeline, replaySession, T0 } from './helpers.js';
 
 /** For asserting that something did *not* change: give it a chance to. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
@@ -175,6 +179,89 @@ describe('TimingView', () => {
     await eventually(() => expect(session.cursor.get('LapCount')?.CurrentLap).toBe(1));
     // The header catches up on the next throttled frame.
     await eventually(() => expect(lastFrame()).toContain('LAP 1/62'));
+    unmount();
+  });
+});
+
+describe('TimingView telemetry export', () => {
+  it('e saves the selected driver telemetry and says where', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'exf1lt-export-'));
+    try {
+      const timeline = raceTimeline();
+      timeline.insert(
+        [0, 250, 500].map((ms) => ({
+          topic: 'CarData',
+          utc: T0 + 200_000 + ms,
+          data: { Entries: [{ Utc: new Date(T0 + 200_000 + ms).toISOString(), Cars: { '1': { Channels: { '2': 250, '3': 7 } } } }] },
+        })),
+      );
+      widen(220);
+      const session = replaySession(timeline);
+      const { stdin, lastFrame, unmount } = render(
+        <SessionProvider session={session}>
+          <TimingView token={undefined} onQuit={() => undefined} exportDir={dir} />
+        </SessionProvider>,
+      );
+      await eventually(() => expect(lastFrame()).toContain('e export'));
+      stdin.write('e');
+      const file = join(dir, 'singapore-grand-prix-race-NOR-telemetry.html');
+      await eventually(() => expect(lastFrame()).toContain(`NOR telemetry saved to ${file}`));
+      expect(await readFile(file, 'utf8')).toContain('<span class="tla">NOR</span>');
+
+      // Mark NOR and PIA: e exports the marked drivers and names the one without car data.
+      stdin.write('m');
+      await eventually(() => expect(lastFrame()).toMatch(/●\s*NOR/));
+      stdin.write('\u001B[B');
+      await settle();
+      stdin.write('m');
+      await eventually(() => expect(lastFrame()).toContain('export 2 marked'));
+      expect(lastFrame()).toContain('M clear marks');
+      stdin.write('e');
+      await eventually(() => expect(lastFrame()).toContain(`NOR, PIA telemetry saved to ${file} (no car data for PIA)`));
+      stdin.write('M');
+      await eventually(() => expect(lastFrame()).not.toMatch(/●\s*(NOR|PIA)/));
+
+      // With no marks, e exports the selected PIA, who has no car data: the footer says why.
+      stdin.write('e');
+      await eventually(() => expect(lastFrame()).toContain('No car telemetry for PIA'));
+      unmount();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+});
+
+describe('TimingView scrubber', () => {
+  it('draws qualifying parts and track conditions into the bar', async () => {
+    const timeline = raceTimeline();
+    timeline.insert([
+      { topic: 'TimingData', utc: T0 + 100_000, data: { SessionPart: 1 } },
+      {
+        topic: 'RaceControlMessages',
+        utc: T0 + 150_000,
+        data: { Messages: { '1': { Utc: '2026-10-11T12:02:30', Category: 'Flag', Flag: 'DOUBLE YELLOW', Scope: 'Sector', Sector: 4 } } },
+      },
+      { topic: 'TrackStatus', utc: T0 + 150_000, data: { Status: '2' } },
+      { topic: 'TrackStatus', utc: T0 + 180_000, data: { Status: '1' } },
+      { topic: 'SessionStatus', utc: T0 + 200_000, data: { Status: 'Finished' } },
+      { topic: 'TimingData', utc: T0 + 205_000, data: { SessionPart: 2 } },
+      { topic: 'SessionStatus', utc: T0 + 210_000, data: { Status: 'Started' } },
+    ]);
+    const { lastFrame, unmount } = render(
+      <SessionProvider session={replaySession(timeline)}>
+        <TimingView token={undefined} onQuit={() => undefined} />
+      </SessionProvider>,
+    );
+    const frame = await eventually(() => {
+      const frame = lastFrame() ?? '';
+      // The double yellow (═) sits between Q1 and Q2; the safety car (═) runs from after Q2 through the playhead.
+      expect(frame).toMatch(/│━+Q1━+═+━+Q2━+═+●═+│ L3/);
+      return frame;
+    });
+    // The bar is one line: nothing is drawn under it any more.
+    const lines = frame.split('\n');
+    const bar = lines.findIndex((line) => line.includes('Q1'));
+    expect(lines[bar + 1]).toMatch(/^ 1-4 screen/);
     unmount();
   });
 });

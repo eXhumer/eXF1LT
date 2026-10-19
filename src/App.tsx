@@ -32,11 +32,13 @@ interface Props {
   readonly token: TokenStatus | undefined;
   /** Where race control messages start out (`--race-control`). */
   readonly raceControl?: RaceControlPlacement;
+  /** Where telemetry reports go (`--export-dir`). */
+  readonly exportDir?: string;
   /** For tests: open a session without the network. */
   readonly openSession?: (source: StartSource, onProgress: (progress: LoadProgress) => void) => Promise<Session>;
 }
 
-export function App({ archive, schedule, start, token, openSession, raceControl = 'side' }: Props) {
+export function App({ archive, schedule, start, token, openSession, raceControl = 'side', exportDir = '.' }: Props) {
   const { exit } = useApp();
   const [screen, setScreen] = useState<Screen>(
     start.kind === 'picker' ? { name: 'picker' } : { name: 'loading', label: labelOf(start) },
@@ -99,6 +101,7 @@ export function App({ archive, schedule, start, token, openSession, raceControl 
             onQuit={quit}
             onBack={fromPicker.current ? back : undefined}
             raceControl={raceControl}
+            exportDir={exportDir}
           />
         </SessionProvider>
       );

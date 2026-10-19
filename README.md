@@ -12,7 +12,66 @@ exf1lt --live --record ./recordings/sgp  # follow and record it
 exf1lt --replay 2026/2026-10-11_Singapore_Grand_Prix/2026-10-11_Race/
 exf1lt --recording ./recordings/sgp      # play back a recording
 exf1lt --race-control bottom             # race control under the timing (side | bottom | off)
+exf1lt --export-dir ./reports            # where e saves telemetry reports (default: here)
+exf1lt telemetry NOR --replay 2026/2026-10-11_Singapore_Grand_Prix/2026-10-11_Race/
+exf1lt telemetry 4 --recording ./recordings/sgp -o nor.html
+exf1lt telemetry NOR PIA LEC --replay <path>  # several drivers, NOR as the reference
+exf1lt telemetry --all --replay <path>        # the whole field
 ```
+
+### Track conditions and qualifying parts
+
+The replay bar shows the track conditions along it: yellow `━` and double yellow `═` in
+yellow, VSC `━` and safety car `═` in orange, and a red flag as a red `█` (a single line for
+the milder condition, a double line for the stronger one). Where conditions overlap, the
+most severe one shows, and ahead of the playhead everything is dimmed. In qualifying and
+sprint qualifying, `Q1`–`Q3` (or `SQ1`–`SQ3`) are written into the bar where each part
+starts.
+
+`TrackStatus` has one code for any yellow, so single and double yellows come from race
+control's sector flags. A part starts when the session goes green after its number
+appears, so a red flag restart within a part is not a new part, and it ends at the next
+chequered flag.
+
+### Telemetry export
+
+`e` saves telemetry as a single HTML file that works offline: the drivers marked with `m`
+(marked rows show `●` in place of the team bar, `M` clears the marks), or the selected
+driver when none are marked. The first driver marked is the reference. Any key clears the
+"saved to" notice.
+
+`exf1lt telemetry <drivers...>` does the same without the TUI (racing numbers or codes,
+the first as the reference), and `--all` takes every driver in timing order. `-o` takes a
+`.html` file or a directory. Drivers without car data are left out and named.
+
+The page has two views:
+
+- **Timeline**: one chart per channel (speed, throttle, brake, gear, RPM, and DRS up to
+  2025) on a shared time axis with every driver overlaid, the reference driver's laps,
+  the track conditions as shaded bands with a key, and a track map that follows the
+  pointer. In qualifying, a solid line marks where each part starts and a dashed one
+  where it ends, and "Zoom to" jumps to a part as well as a lap. The readout names the
+  part and the condition under the pointer. Click a driver to hide it, double-click to
+  show only that driver.
+- **Lap comparison**: a reference lap and any number of other laps (other drivers', or
+  the reference driver's own) against lap distance, with each one's time delta to the
+  reference on top. It starts on the reference's fastest lap against the next five
+  drivers' fastest, or one driver's two fastest. `+ Add lap`, `✕` and `⇧` (make the
+  reference) change the set; `[` `]` step the last lap. Above zero, a lap is behind the
+  reference at that point. The map shows every car at the same distance.
+
+Beside the map, a table lists every line's values under the pointer. Team-mates share a
+colour, so a line whose colour is close to an earlier one is dashed (then dotted) in a
+different shade.
+
+Distance is integrated from the speed channel (about four samples a second). Each lap
+runs from its official end time minus its official lap time, and every lap is scaled to
+the reference's length, so the delta at the line is exactly the lap time difference. Laps
+without an official time are marked `*`. Scroll to zoom, drag to pan, and download the
+samples (or the comparison on its distance grid) as CSV.
+
+On a live session it exports what has arrived since you connected, and needs the
+subscription token, which is what unlocks `CarData` and `Position`.
 
 ### Screens
 

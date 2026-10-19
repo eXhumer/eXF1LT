@@ -57,6 +57,8 @@ export interface TimingRow {
   readonly dim: boolean;
   /** Last row above the qualifying cutoff. */
   readonly cutoff: boolean;
+  /** Marked (m) for the next telemetry export. */
+  readonly marked?: boolean;
 }
 
 export interface TimingInput {

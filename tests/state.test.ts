@@ -3,7 +3,7 @@ import { describe, expect, it, vi } from 'vitest';
 
 import { remainingAt } from '../src/format/time.js';
 import { FrameStore } from '../src/state/frame.js';
-import { lapStart, lapStarts, sessionStartTime, statusMarkers } from '../src/state/laps.js';
+import { lapStart, lapStarts, sessionStartTime } from '../src/state/laps.js';
 import { buildTimingRows, segmentKind } from '../src/state/timingRows.js';
 import { raceTimeline, T0 } from './helpers.js';
 
@@ -103,10 +103,6 @@ describe('laps', () => {
     expect(lapStarts(timeline).map((entry) => entry.lap)).toEqual([1, 2, 3]);
     expect(lapStart(timeline, 2)).toBe(T0 + 220_000);
     expect(lapStart(timeline, 9)).toBeUndefined();
-  });
-
-  it('marks the safety car', () => {
-    expect(statusMarkers(timeline)).toEqual([{ utc: T0 + 300_000, kind: 'sc' }]);
   });
 });
 
