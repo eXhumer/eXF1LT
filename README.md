@@ -1,5 +1,9 @@
 # eXF1LT
 
+[![CI](https://github.com/eXhumer/eXF1LT/actions/workflows/ci.yml/badge.svg)](https://github.com/eXhumer/eXF1LT/actions/workflows/ci.yml)
+[![Coverage](https://codecov.io/gh/eXhumer/eXF1LT/branch/main/graph/badge.svg)](https://codecov.io/gh/eXhumer/eXF1LT)
+[![Binaries](https://github.com/eXhumer/eXF1LT/actions/workflows/binaries.yml/badge.svg)](https://github.com/eXhumer/eXF1LT/actions/workflows/binaries.yml)
+
 F1 live timing in your terminal, built with [Ink](https://github.com/vadimdemedes/ink) on
 [`@exhumer/f1-live-timing`](https://github.com/eXhumer/f1-live-timing).
 

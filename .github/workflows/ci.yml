@@ -31,11 +31,31 @@ jobs:
       - name: Type check
         run: npm run typecheck
 
-      - name: Run tests
-        run: npm test
+      - name: Run tests with coverage
+        run: npm run coverage
 
       - name: Build
         run: npm run build
 
       - name: Smoke test the CLI
         run: node dist/cli.mjs --help
+
+      - name: Upload coverage to Codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: matrix.node-version == 22 && env.CODECOV_TOKEN != '' && !cancelled()
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: 'coverage'
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./coverage/lcov.info
+
+      - name: Upload test results to Codecov
+        env:
+          CODECOV_TOKEN: ${{ secrets.CODECOV_TOKEN }}
+        if: matrix.node-version == 22 && env.CODECOV_TOKEN != '' && !cancelled()
+        uses: codecov/codecov-action@v7
+        with:
+          report_type: 'test_results'
+          token: ${{ secrets.CODECOV_TOKEN }}
+          files: ./test-report.junit.xml

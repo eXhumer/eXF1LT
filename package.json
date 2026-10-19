@@ -23,7 +23,8 @@
     "start": "node dist/cli.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --reporter=verbose",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "coverage": "vitest run --coverage --reporter=junit --outputFile=test-report.junit.xml"
   },
   "keywords": [
     "f1",
@@ -42,6 +43,7 @@
   "devDependencies": {
     "@types/node": "^26.6.5",
     "@types/react": "^19.3.0",
+    "@vitest/coverage-istanbul": "^5.0.5",
     "ink-testing-library": "^4.0.0",
     "tsdown": "^0.23.1",
     "typescript": "^7.0.2",
