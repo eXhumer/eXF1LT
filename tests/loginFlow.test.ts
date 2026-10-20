@@ -168,10 +168,15 @@ describe('login', () => {
   it('gives up when the browser never opens its DevTools port', async () => {
     vi.useFakeTimers({ toFake: ['setTimeout', 'clearTimeout', 'Date'] });
     control.spawn = () => new FakeChild();
+    control.endpoint = [undefined]; // never written
     const attempt = login({ browser: '/opt/chrome', cacheDir });
     let error: unknown;
     attempt.catch((cause: unknown) => (error = cause));
-    for (let step = 0; step < 400 && error === undefined; step++) {
+    // Step the fake clock until login gives up. Its profile setup is real file
+    // I/O, which takes real time (more on a slow CI runner), so the limit is
+    // real time, not a number of steps.
+    const started = performance.now();
+    while (error === undefined && performance.now() - started < 15_000) {
       await vi.advanceTimersByTimeAsync(100);
       await new Promise((resolve) => setImmediate(resolve));
     }
