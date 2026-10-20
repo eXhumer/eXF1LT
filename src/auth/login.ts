@@ -133,8 +133,9 @@ export async function captureTokenResponse(client: CdpClient, options: CaptureOp
       }
     };
 
+    // Everything that can fail here is a DevTools command, which rejects with a CdpError.
     const unsubscribe = client.onEvent((event) => {
-      handle(event).catch((error: unknown) => fail(error instanceof Error ? error : new Error(String(error))));
+      handle(event).catch((error: unknown) => fail(error as Error));
     });
 
     // Pages that exist already, then every page opened later (popups, new tabs).
@@ -144,7 +145,7 @@ export async function captureTokenResponse(client: CdpClient, options: CaptureOp
         'Target.getTargets',
       );
       for (const info of targetInfos) if (info.type === 'page') await attach(info.targetId);
-    })().catch((error: unknown) => fail(error instanceof Error ? error : new Error(String(error))));
+    })().catch((error: unknown) => fail(error as Error));
   });
 }
 

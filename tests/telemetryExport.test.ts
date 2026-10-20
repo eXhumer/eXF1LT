@@ -388,3 +388,73 @@ describe('exportTelemetry', () => {
     expect(telemetryFileName(many)).toBe('singapore-grand-prix-race-5-drivers-telemetry.html');
   });
 });
+
+describe('telemetry on sparse sessions', () => {
+  /** Car data only: no DriverList, SessionInfo or TimingData. */
+  function bare(...drivers: string[]): Timeline {
+    const t = new Timeline();
+    t.insert(drivers.flatMap((driver) => carMessages(driver, sawtooth, { from: 0, to: 2 })));
+    return t;
+  }
+
+  it('finds drivers by their car data alone, in racing number order', () => {
+    const t = bare('44', '12');
+    expect(resolveDriver(t, '44')).toBe('44');
+    expect(resolveDriver(t, 'HAM')).toBeUndefined();
+    expect(sessionDrivers(t)).toEqual(['12', '44']);
+  });
+
+  it('names a driver and session it knows nothing about', () => {
+    const report = collectTelemetry(bare('44'), ['44']);
+    expect(report.session).toEqual({ meeting: 'F1 session', name: '', offsetMs: 0 });
+    expect(report.drivers[0]?.driver).toEqual({ number: '44', tla: '44', name: '44', team: '', colour: '#e10600' });
+    expect(report.skipped).toEqual([]);
+  });
+
+  it('builds a name from first and last name, and fills DRS gaps with zero', () => {
+    const t = bare('44');
+    t.insert([
+      { topic: 'DriverList', utc: T0, data: { '44': { Tla: 'HAM', FirstName: 'Lewis', LastName: 'Hamilton' } } },
+      {
+        topic: 'CarData',
+        utc: T0 + 5_000,
+        data: { Entries: [{ Utc: new Date(T0 + 5_000).toISOString(), Cars: { '44': { Channels: { '2': 300, '45': 12 } } } }] },
+      },
+    ]);
+    const [ham] = collectTelemetry(t, ['44']).drivers;
+    expect(ham?.driver.name).toBe('Lewis Hamilton');
+    expect(ham?.car.drs?.slice(0, 2)).toEqual([0, 0]);
+    expect(ham?.car.drs?.at(-1)).toBe(12);
+  });
+
+  it('needs at least one driver', () => {
+    expect(() => collectTelemetry(bare('44'), [])).toThrow('No drivers to export.');
+  });
+
+  it('writes to the current directory by default', async () => {
+    const dir = await mkdtemp(join(tmpdir(), 'exf1lt-cwd-'));
+    const cwd = process.cwd();
+    process.chdir(dir);
+    try {
+      const { file } = await exportTelemetry(bare('44'), ['44']);
+      expect(file).toBe('f1-session-44-telemetry.html');
+      expect(await readFile(join(dir, file), 'utf8')).toContain('<span class="tla">44</span>');
+    } finally {
+      process.chdir(cwd);
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+
+  it('titles big reports by count, escapes line separators and leaves out empty names', () => {
+    const report = collectTelemetry(bare('1', '2', '3', '4'), ['1', '2', '3', '4']);
+    const html = renderTelemetryHtml({ ...report, session: { ...report.session, meeting: 'A B' } });
+    expect(html).toContain('<title>4 drivers telemetry · A B</title>');
+    expect(html).toContain('A\\u2028B');
+    expect(html).not.toContain('class="session">A B ·');
+
+    const two = renderTelemetryHtml(collectTelemetry(bare('1', '2'), ['1', '2']));
+    expect(two).toContain('<span class="name">1</span>');
+    // A report built by hand with no drivers still has a page colour.
+    expect(renderTelemetryHtml({ ...report, drivers: [] })).toContain('--team:#e10600');
+  });
+});

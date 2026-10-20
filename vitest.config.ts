@@ -12,15 +12,12 @@ export default defineConfig({
       reporter: ['text', 'lcov'],
       reportsDirectory: 'coverage',
 
-      /**
-       * Just under today's coverage, so it cannot slip. Raise these as
-       * tests are added; the libraries hold 100%.
-       */
+      /** Keep the suite honest: any coverage regression fails CI. */
       thresholds: {
-        statements: 80,
-        branches: 69,
-        functions: 82,
-        lines: 82,
+        statements: 100,
+        branches: 100,
+        functions: 100,
+        lines: 100,
       },
     },
   },

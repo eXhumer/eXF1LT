@@ -100,15 +100,16 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side', export
     return () => clearTimeout(timer);
   }, [notice]);
 
-  const tlaOf = (number: string) => timingRows.find((row) => row.number === number)?.tla ?? number;
   const toggleMark = (number: string) =>
     setMarked((value) => (value.includes(number) ? value.filter((item) => item !== number) : [...value, number]));
 
-  // The marked drivers (the first marked is the reference), or the selected one.
+  // The marked drivers in the order they were marked (the first is the reference), or the selected one.
   const exportMarked = () => {
-    const numbers = marked.length > 0 ? marked : focus ? [focus] : [];
-    if (numbers.length === 0) return;
-    const label = numbers.length > 3 ? `${numbers.length} drivers'` : numbers.map(tlaOf).join(', ');
+    const chosen = marked.length > 0 ? marked : focus ? [focus] : [];
+    const rows = chosen.flatMap((number) => timingRows.filter((row) => row.number === number));
+    if (rows.length === 0) return;
+    const numbers = rows.map((row) => row.number);
+    const label = rows.length > 3 ? `${rows.length} drivers'` : rows.map((row) => row.tla).join(', ');
     setNotice({ text: `Exporting ${label} telemetry…`, error: false });
     exportTelemetry(session.timeline, numbers, exportDir).then(
       ({ file, skipped }) =>

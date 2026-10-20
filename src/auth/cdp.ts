@@ -104,10 +104,12 @@ export class CdpClient {
 export function connectWebSocket(url: string): Promise<CdpTransport> {
   return new Promise((resolve, reject) => {
     const socket = new WebSocket(url);
+    // DevTools speaks text frames; decode a binary one rather than read it as "[object Blob]".
+    socket.binaryType = 'arraybuffer';
     const messageListeners: Array<(data: string) => void> = [];
     const closeListeners: Array<() => void> = [];
     socket.addEventListener('message', (event) => {
-      const data = typeof event.data === 'string' ? event.data : String(event.data);
+      const data = typeof event.data === 'string' ? event.data : new TextDecoder().decode(event.data as ArrayBuffer);
       for (const listener of messageListeners) listener(data);
     });
     socket.addEventListener('close', () => {

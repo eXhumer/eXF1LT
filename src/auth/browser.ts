@@ -44,15 +44,14 @@ export function browserCandidates(
       const found = list(win32.join(root, 'BraveSoftware')).filter((name) => name.startsWith('Brave-'));
       return [...new Set([...known, ...found])];
     };
-    const groups = (root: string): string[][][] => [
-      [['Google', 'Chrome', 'Application', 'chrome.exe']],
-      [['Microsoft', 'Edge', 'Application', 'msedge.exe']],
-      braveEditions(root).map((edition) => ['BraveSoftware', edition, 'Application', 'brave.exe']),
-      [['Chromium', 'Application', 'chrome.exe']],
+    // Each browser in every root before the next browser: Chrome anywhere beats Edge anywhere.
+    const groups: ((root: string) => string[][])[] = [
+      () => [['Google', 'Chrome', 'Application', 'chrome.exe']],
+      () => [['Microsoft', 'Edge', 'Application', 'msedge.exe']],
+      (root) => braveEditions(root).map((edition) => ['BraveSoftware', edition, 'Application', 'brave.exe']),
+      () => [['Chromium', 'Application', 'chrome.exe']],
     ];
-    return [0, 1, 2, 3].flatMap((rank) =>
-      roots.flatMap((root) => (groups(root)[rank] ?? []).map((exe) => win32.join(root, ...exe))),
-    );
+    return groups.flatMap((group) => roots.flatMap((root) => group(root).map((exe) => win32.join(root, ...exe))));
   }
   const names = ['google-chrome', 'google-chrome-stable', 'microsoft-edge', 'brave-browser', 'brave-origin', 'brave-origin-nightly', 'chromium', 'chromium-browser'];
   const dirs = (env['PATH'] ?? '').split(':').filter(Boolean);

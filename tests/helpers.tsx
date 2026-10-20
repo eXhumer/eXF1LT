@@ -1,7 +1,12 @@
 import { type LiveTimingMessage, Timeline } from '@exhumer/f1-live-timing';
+import { render } from 'ink-testing-library';
+import type { ReactNode } from 'react';
 import { vi } from 'vitest';
 
 import type { Session } from '../src/sources/session.js';
+import { SessionProvider } from '../src/state/SessionContext.js';
+import type { TimingRow } from '../src/state/timingRows.js';
+import type { Playback } from '../src/state/usePlayback.js';
 
 export const T0 = Date.parse('2026-10-11T12:00:00Z');
 
@@ -153,4 +158,69 @@ export function replaySession(timeline = raceTimeline()): Session {
   const cursor = timeline.cursor();
   cursor.seek(T0 + 310_000);
   return { kind: 'replay', timeline, cursor, skippedTopics: [], close: async () => cursor.dispose() };
+}
+
+/** A timing row with every field blank, for tests that render one column or panel. */
+export function timingRow(patch: Partial<TimingRow> = {}): TimingRow {
+  return {
+    number: '4',
+    tla: 'NOR',
+    lastName: 'NORRIS',
+    teamColour: '#F47600',
+    position: '1',
+    gap: '',
+    interval: '',
+    catching: false,
+    last: { value: '', tone: 'normal' },
+    best: '',
+    sectors: [],
+    bestSectors: [],
+    speeds: [],
+    gridPosition: undefined,
+    positionChange: undefined,
+    lapsDown: undefined,
+    stint: undefined,
+    previousStints: [],
+    compound: undefined,
+    tyreAge: undefined,
+    pits: undefined,
+    status: 'running',
+    dim: false,
+    cutoff: false,
+    ...patch,
+  };
+}
+
+/** A Playback that does nothing, for components that only display it. */
+export function idlePlayback(patch: Partial<Playback> = {}): Playback {
+  const noop = () => undefined;
+  return {
+    playing: false,
+    speed: 1,
+    following: false,
+    togglePlay: noop,
+    faster: noop,
+    slower: noop,
+    seekBy: noop,
+    seekTo: noop,
+    goLive: noop,
+    ...patch,
+  };
+}
+
+/** A replay session over these messages, its cursor on the last one. */
+export function sessionOf(messages: LiveTimingMessage[], patch: Partial<Session> = {}): Session {
+  const timeline = new Timeline();
+  timeline.insert(messages);
+  const cursor = timeline.cursor();
+  cursor.seek(timeline.last ?? T0);
+  return { kind: 'replay', timeline, cursor, skippedTopics: [], close: async () => undefined, ...patch };
+}
+
+/** The first frame of a component inside a session. */
+export function frameOf(session: Session, node: ReactNode): string {
+  const { lastFrame, unmount } = render(<SessionProvider session={session}>{node}</SessionProvider>);
+  const frame = lastFrame() ?? '';
+  unmount();
+  return frame;
 }

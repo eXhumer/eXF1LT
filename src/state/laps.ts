@@ -5,12 +5,14 @@ const PRE_START_MS = 60_000;
 
 /** Where to park a replay: a minute before `SessionStatus` first says `Started`. */
 export function sessionStartTime(timeline: Timeline): number {
+  const first = timeline.first;
+  if (first === undefined) return 0;
   for (const message of timeline.messages()) {
     if (message.topic === 'SessionStatus' && isPlainObject(message.data) && message.data['Status'] === 'Started') {
-      return Math.max(message.utc - PRE_START_MS, timeline.first ?? message.utc);
+      return Math.max(message.utc - PRE_START_MS, first);
     }
   }
-  return timeline.first ?? 0;
+  return first;
 }
 
 /** UTC instant each lap began, from `LapCount` updates. Index 0 is lap 1. */

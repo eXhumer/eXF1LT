@@ -30,7 +30,7 @@ interface TokenOptions {
 
 /** Both F1 tokens, from the files given, the environment or the cache. Exits with the error otherwise. */
 async function resolveTokens(options: TokenOptions): Promise<{ token: TokenStatus; authorization: TokenStatus }> {
-  const fail = (error: unknown) => program.error(error instanceof Error ? error.message : String(error));
+  const fail = (error: unknown) => program.error(describeError(error));
   const token = await resolveToken({
     tokenFile: options.tokenFile,
     envToken: process.env['F1_TOKEN'],
@@ -143,7 +143,7 @@ program
       cacheDir: configDir(),
       timeoutMs: minutes * 60_000,
       onBrowserOpen: (browser) => console.log(`Opened ${browser}. Log in to your F1 account there; this window closes by itself.`),
-    }).catch((error: unknown) => program.error(error instanceof Error ? error.message : String(error)));
+    }).catch((error: unknown) => program.error(describeError(error)));
     const statusOf = (token: string) => tokenStatus(token, 'file', Date.now());
     const until = (token: string) => {
       const { expiresAt } = statusOf(token);

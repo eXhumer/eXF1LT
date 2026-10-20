@@ -18,6 +18,9 @@ export type StartSource =
   | { readonly kind: 'replay'; readonly path: string }
   | { readonly kind: 'recording'; readonly dir: string };
 
+/** A source that opens a session: everything but the picker. */
+type SessionSource = Exclude<StartSource, { readonly kind: 'picker' }>;
+
 type Screen =
   | { readonly name: 'picker' }
   | { readonly name: 'loading'; readonly label: string; readonly progress?: LoadProgress }
@@ -35,7 +38,7 @@ interface Props {
   /** Where telemetry reports go (`--export-dir`). */
   readonly exportDir?: string;
   /** For tests: open a session without the network. */
-  readonly openSession?: (source: StartSource, onProgress: (progress: LoadProgress) => void) => Promise<Session>;
+  readonly openSession?: (source: SessionSource, onProgress: (progress: LoadProgress) => void) => Promise<Session>;
 }
 
 export function App({ archive, schedule, start, token, openSession, raceControl = 'side', exportDir = '.' }: Props) {
@@ -47,11 +50,11 @@ export function App({ archive, schedule, start, token, openSession, raceControl 
   const fromPicker = useRef(start.kind === 'picker');
 
   const open = useCallback(
-    (source: StartSource) => {
+    (source: SessionSource) => {
       setScreen({ name: 'loading', label: labelOf(source) });
       const onProgress = (progress: LoadProgress) =>
         setScreen({ name: 'loading', label: labelOf(source), progress });
-      const opener = openSession ?? ((s: StartSource, p: (progress: LoadProgress) => void) => defaultOpen(archive, token, s, p));
+      const opener = openSession ?? ((s: SessionSource, p: (progress: LoadProgress) => void) => defaultOpen(archive, token, s, p));
       opener(source, onProgress)
         .then((session) => {
           sessionRef.current = session;
@@ -111,7 +114,7 @@ export function App({ archive, schedule, start, token, openSession, raceControl 
 function defaultOpen(
   archive: ArchiveClient,
   token: TokenStatus | undefined,
-  source: StartSource,
+  source: SessionSource,
   onProgress: (progress: LoadProgress) => void,
 ): Promise<Session> {
   switch (source.kind) {
@@ -121,12 +124,10 @@ function defaultOpen(
       return openReplay(archive, source.path, onProgress);
     case 'recording':
       return openRecording(source.dir);
-    case 'picker':
-      throw new Error('The picker is not a session.');
   }
 }
 
-function labelOf(source: StartSource): string {
+function labelOf(source: SessionSource): string {
   switch (source.kind) {
     case 'live':
       return 'Connecting to the live feed';
@@ -134,8 +135,6 @@ function labelOf(source: StartSource): string {
       return `Loading ${source.path}`;
     case 'recording':
       return `Loading recording ${source.dir}`;
-    case 'picker':
-      return '';
   }
 }
 
