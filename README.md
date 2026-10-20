@@ -270,3 +270,7 @@ git push origin v0.1.0
 
 The Linux builds need glibc 2.28 or newer, like the official Node.js binaries they
 are made from.
+
+## License
+
+[MIT](LICENSE.md)
