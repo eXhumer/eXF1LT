@@ -24,7 +24,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test": "vitest run --reporter=verbose",
     "test:watch": "vitest",
-    "coverage": "vitest run --coverage --reporter=junit --outputFile=test-report.junit.xml"
+    "coverage": "vitest run --coverage --reporter=default --reporter=junit --outputFile.junit=test-report.junit.xml"
   },
   "keywords": [
     "f1",

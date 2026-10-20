@@ -17,6 +17,11 @@ const control = vi.hoisted(() => ({
   spawn: undefined as undefined | ((command: string, args: string[]) => unknown),
   noBrowser: false,
   rmFails: false,
+  /**
+   * What successive reads of DevToolsActivePort see (undefined: not written
+   * yet); the last one stays. Off: the real file is read.
+   */
+  endpoint: undefined as undefined | (string | undefined)[],
 }));
 
 vi.mock('node:child_process', async (importOriginal) => {
@@ -36,6 +41,11 @@ vi.mock('node:fs/promises', async (importOriginal) => {
     ...real,
     rm: (path: string, options?: { recursive?: boolean }) =>
       control.rmFails && options?.recursive ? Promise.reject(new Error('busy')) : real.rm(path, options as never),
+    readFile: (path: string, options: never) => {
+      if (!control.endpoint || !String(path).endsWith('DevToolsActivePort')) return real.readFile(path, options);
+      const content = control.endpoint.length > 1 ? control.endpoint.shift() : control.endpoint[0];
+      return content === undefined ? Promise.reject(Object.assign(new Error('ENOENT'), { code: 'ENOENT' })) : Promise.resolve(content);
+    },
   };
 });
 
@@ -56,6 +66,7 @@ afterEach(async () => {
   control.spawn = undefined;
   control.noBrowser = false;
   control.rmFails = false;
+  control.endpoint = undefined;
   vi.unstubAllEnvs();
   vi.useRealTimers();
   await server?.stop();
@@ -64,9 +75,10 @@ afterEach(async () => {
 });
 
 /**
- * A browser started by `spawn`: it writes its DevTools port into the profile
- * the way Chrome does (an empty file first, then just the port, then both
- * lines) and serves DevTools from the fake Chrome.
+ * A browser started by `spawn` that serves DevTools from the fake Chrome. Its
+ * DevToolsActivePort reads the way Chrome writes it, one state per read: not
+ * there, empty, just the port, then both lines. Per read rather than on a
+ * timer, so every state is seen on any machine.
  */
 async function fakeBrowser(options: FakeChromeOptions) {
   const chrome = fakeChrome(options);
@@ -76,11 +88,7 @@ async function fakeBrowser(options: FakeChromeOptions) {
   control.spawn = (command, args) => {
     const child = new FakeChild();
     launches.push({ command, args, child });
-    const profile = args.find((arg) => arg.startsWith('--user-data-dir='))!.slice('--user-data-dir='.length);
-    const file = join(profile, 'DevToolsActivePort');
-    void writeFile(file, '');
-    setTimeout(() => void writeFile(file, `${port}\n`), 120);
-    setTimeout(() => void writeFile(file, `${port}\n/devtools/browser/fake`), 240);
+    control.endpoint = [undefined, '', `${port}\n`, `${port}\n/devtools/browser/fake`];
     return child;
   };
   return { chrome, launches };
@@ -119,6 +127,8 @@ describe('login', () => {
 
     expect(launches[0]?.args.at(-1)).toBe('about:blank');
     expect(existsSync(profile)).toBe(true);
+    // The stale port file from the last run was removed before the browser started.
+    expect(existsSync(join(profile, 'DevToolsActivePort'))).toBe(false);
     const methods = chrome.methods();
     // Wiped, opened on F1 (no page to begin with, so one is created), then wiped again.
     expect(methods.filter((method) => method === 'Storage.clearCookies')).toHaveLength(2);

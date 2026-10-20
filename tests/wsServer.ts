@@ -71,9 +71,13 @@ export async function startWsServer(onMessage: (peer: WsPeer, text: string) => v
   const peers: WsPeer[] = [];
   const sockets = new Set<Socket>();
   const server: Server = createServer((_request, response) => response.writeHead(404).end());
+  server.on('clientError', (_error, socket) => socket.destroy());
   server.on('upgrade', (request, socket: Socket) => {
     sockets.add(socket);
     socket.on('close', () => sockets.delete(socket));
+    // A client that closes while we write gives EPIPE or ECONNRESET (on Linux especially).
+    // Unheard, that error would end the test run, though no test failed.
+    socket.on('error', () => socket.destroy());
     const accept = createHash('sha1').update(`${String(request.headers['sec-websocket-key'])}${GUID}`).digest('base64');
     socket.write(['HTTP/1.1 101 Switching Protocols', 'Upgrade: websocket', 'Connection: Upgrade', `Sec-WebSocket-Accept: ${accept}`, '', ''].join('\r\n'));
 
