@@ -77,18 +77,17 @@ describe('TimingView', () => {
   it('keeps the header and footer whole in a terminal too short for everything, clipping the body', async () => {
     terminalRows(12);
     const { lastFrame, unmount } = view();
-    const lines = await eventually(() => {
+    await eventually(() => {
       const lines = (lastFrame() ?? '').split('\n');
+      expect(lines).toHaveLength(12);
       expect(lines[0]).toContain('eXF1LT  Singapore Grand Prix · Race');
-      return lines;
+      expect(lines[1]).toContain('LAP 2/62');
+      expect(lines[3]).toContain('1 LEADERBOARD');
+      // The race control strip still fits; the leaderboard has no rows left.
+      expect(lines[4]).toContain('RACE CONTROL');
+      expect(lines.at(-2)).toContain('❚❚ 1×');
+      expect(lines.at(-1)).toContain('1-4 screen');
     });
-    expect(lines[1]).toContain('LAP 2/62');
-    expect(lines[3]).toContain('1 LEADERBOARD');
-    expect(lines).toHaveLength(12);
-    expect(lines.at(-1)).toContain('1-4 screen');
-    expect(lines.at(-2)).toContain('❚❚ 1×');
-    // The race control strip still fits; the leaderboard has no rows left.
-    expect(lines[4]).toContain('RACE CONTROL');
     unmount();
   });
 

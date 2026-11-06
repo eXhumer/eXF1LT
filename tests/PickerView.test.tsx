@@ -95,17 +95,17 @@ describe('PickerView', () => {
     const { lastFrame, unmount } = render(
       <PickerView archive={archive} token={undefined} onPick={() => undefined} onQuit={() => undefined} now={NOW} />,
     );
-    const lines = await eventually(() => {
+    // Wait for the whole frame: the season and the archive checks load asynchronously.
+    await eventually(() => {
       const lines = (lastFrame() ?? '').split('\n');
+      expect(lines).toHaveLength(6);
       expect(lines[0]).toMatch(/eXF1LT ─ choose a session +season ◀ 2026 ▶/);
-      return lines;
+      expect(lines[1]).toMatch(/^─+$/);
+      expect(lines[2]).toContain('Singapore Grand Prix');
+      // The list gave way, and the hints are cut short so the status on the right stays whole.
+      expect(lines[4]).toMatch(/^─+$/);
+      expect(lines[5]).toMatch(/↑↓ meeting .*… {2}🔑 no token \(exf1lt login\): no car data\/positions$/);
     });
-    expect(lines).toHaveLength(6);
-    expect(lines[1]).toMatch(/^─+$/);
-    expect(lines[2]).toContain('Singapore Grand Prix');
-    // The list gave way, and the hints are cut short so the status on the right stays whole.
-    expect(lines[4]).toMatch(/^─+$/);
-    expect(lines[5]).toMatch(/↑↓ meeting .*… {2}🔑 no token \(exf1lt login\): no car data\/positions$/);
     unmount();
   });
 

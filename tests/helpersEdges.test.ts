@@ -4,7 +4,7 @@
  */
 import { chmod, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, relative } from 'node:path';
 
 import { ArchiveClient, ArchiveHttpError, ArchiveNotFoundError } from '@exhumer/f1-live-timing';
 import { F1TVClient } from '@exhumer/f1tv-api';
@@ -231,14 +231,23 @@ describe('tokens', () => {
 
 describe('findBrowser', () => {
   it('checks candidates on disk, and searches the real environment by default', async () => {
-    const chromium = join(dir, 'chromium');
-    await writeFile(chromium, '#!/bin/sh\n');
-    await chmod(chromium, 0o755);
-    // google-chrome comes first but is not there; chromium is.
-    expect(findBrowser(undefined, { PATH: dir }, 'linux')).toBe(join(dir, 'chromium').replaceAll('\\', '/'));
-    expect(findBrowser(undefined, {}, 'linux')).toBeUndefined();
-    const found = findBrowser(undefined);
-    expect(found === undefined || typeof found === 'string').toBe(true);
-    expect(await readFile(chromium, 'utf8')).toBe('#!/bin/sh\n');
+    // A Linux PATH splits on ':', so it can't hold a Windows drive letter. A
+    // folder relative to the working directory works on every platform.
+    await mkdir(join('node_modules', '.cache'), { recursive: true });
+    const folder = relative(process.cwd(), await mkdtemp(join('node_modules', '.cache', 'exf1lt-browser-')));
+    try {
+      const linuxDir = folder.replaceAll('\\', '/');
+      const chromium = join(folder, 'chromium');
+      await writeFile(chromium, '#!/bin/sh\n');
+      await chmod(chromium, 0o755);
+      // google-chrome comes first but is not there; chromium is.
+      expect(findBrowser(undefined, { PATH: linuxDir }, 'linux')).toBe(`${linuxDir}/chromium`);
+      expect(findBrowser(undefined, {}, 'linux')).toBeUndefined();
+      const found = findBrowser(undefined);
+      expect(found === undefined || typeof found === 'string').toBe(true);
+      expect(await readFile(chromium, 'utf8')).toBe('#!/bin/sh\n');
+    } finally {
+      await rm(folder, { recursive: true, force: true });
+    }
   });
 });
