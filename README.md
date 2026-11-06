@@ -25,6 +25,12 @@ exf1lt telemetry NOR PIA LEC --replay <path>  # several drivers, NOR as the refe
 exf1lt telemetry --all --replay <path>        # the whole field
 ```
 
+`--live` can be started before a session: until it begins the feed shows the previous
+session, then switches over on its own, and the replay bar starts afresh. A dropped
+connection is retried until it comes back. With `--record`, a session that had already
+ended when you connected is not recorded; the next one goes into the directory you gave,
+and any after it into `<dir>-<session key>`.
+
 ### Track conditions and qualifying parts
 
 The replay bar shows the track conditions along it: yellow `━` and double yellow `═` in

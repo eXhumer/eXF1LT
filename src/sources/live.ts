@@ -1,4 +1,11 @@
-import { type HubConnectionLike, LiveClient, Recorder, Timeline } from '@exhumer/f1-live-timing';
+import {
+  type HubConnectionLike,
+  isPlainObject,
+  LiveClient,
+  type LiveTimingMessage,
+  Recorder,
+  Timeline,
+} from '@exhumer/f1-live-timing';
 
 import type { Session } from './session.js';
 
@@ -10,26 +17,47 @@ export interface LiveSourceOptions {
   readonly connectionFactory?: (url: string) => HubConnectionLike;
 }
 
+/** Statuses of a session that is over: the feed keeps serving it until the next one. */
+const ENDED = new Set(['Finalised', 'Ends']);
+
 /**
  * Connect to the live feed and follow it.
  *
- * `LiveClient.connect()` delivers the subscription snapshot before it
- * resolves, so the timeline and recording start from `live.snapshot`.
+ * `LiveClient` keeps reconnecting until the connection comes back, and the
+ * timeline clears itself when the feed moves on to the next session, so the
+ * scrubber, laps and telemetry only ever cover the session showing.
+ *
+ * When recording, a session that had already ended when the feed connected is
+ * skipped; the next session goes into `recordDir`, and any after it into
+ * `recordDir-<session key>`.
  */
 export async function openLive(options: LiveSourceOptions = {}): Promise<Session> {
-  const raw = options.recordDir !== undefined;
   const live = await LiveClient.connect({
     ...(options.authToken ? { authToken: options.authToken } : {}),
-    raw,
+    raw: options.recordDir !== undefined,
     ...(options.connectionFactory ? { connectionFactory: options.connectionFactory } : {}),
   });
-
   const timeline = Timeline.fromLive(live);
-  const recorder = options.recordDir ? await Recorder.create(options.recordDir) : undefined;
   timeline.insert(live.snapshot);
-  if (recorder) {
-    for (const message of live.snapshot) recorder.write(message);
-    live.subscribeMessages((message) => recorder.write(message));
+
+  let recorder: Recorder | undefined;
+  const closing: Promise<void>[] = [];
+  let unrecord = () => {};
+  if (options.recordDir) {
+    const recordDir = options.recordDir;
+    const record = (dir: string, messages: readonly LiveTimingMessage[] = []) => {
+      if (recorder) closing.push(recorder.close());
+      recorder = Recorder.createSync(dir);
+      for (const message of messages) recorder.write(message);
+    };
+    const status = live.snapshot.find((message) => message.topic === 'SessionStatus')?.data;
+    if (!(isPlainObject(status) && ENDED.has(status['Status'] as string))) record(recordDir, live.snapshot);
+    const unsession = live.subscribeSession((session) => record(recorder ? `${recordDir}-${session.key}` : recordDir));
+    const unmessages = live.subscribeMessages((message) => recorder?.write(message));
+    unrecord = () => {
+      unsession();
+      unmessages();
+    };
   }
 
   const cursor = timeline.cursor();
@@ -44,10 +72,11 @@ export async function openLive(options: LiveSourceOptions = {}): Promise<Session
     subscribeLiveStatus: (listener) => live.subscribeStatus((status) => listener(status)),
     ...(options.recordDir ? { recordingTo: options.recordDir } : {}),
     async close() {
+      unrecord();
       cursor.dispose();
       timeline[Symbol.dispose]();
       await live.close();
-      await recorder?.close();
+      await Promise.all([...closing, recorder?.close()]);
     },
   };
 }

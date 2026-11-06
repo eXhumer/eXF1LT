@@ -14,7 +14,12 @@ export function KeyHints({ hints, right }: { hints: readonly Hint[]; right?: str
           </Text>
         ))}
       </Text>
-      {right ? <Text dimColor>{right}</Text> : null}
+      {/* The status on the right stays whole; the hints are cut short instead. */}
+      {right ? (
+        <Box flexShrink={0} marginLeft={2}>
+          <Text dimColor>{right}</Text>
+        </Box>
+      ) : null}
     </Box>
   );
 }

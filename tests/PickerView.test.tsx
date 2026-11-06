@@ -5,7 +5,7 @@ import { beforeEach, describe, expect, it } from 'vitest';
 import type { TvSchedule } from '../src/archive/f1tvSchedule.js';
 import { clearSessionChecks } from '../src/archive/seasonCatalog.js';
 import { FIRST_ARCHIVE_YEAR, type PickResult, PickerView, seasonYears } from '../src/views/PickerView.js';
-import { eventually } from './helpers.js';
+import { eventually, terminalRows } from './helpers.js';
 
 /** For asserting that something did *not* change: give it a chance to. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
@@ -90,6 +90,25 @@ describe('seasonYears', () => {
 });
 
 describe('PickerView', () => {
+  it('keeps the header and footer whole in a terminal too short for everything, clipping the list', async () => {
+    terminalRows(6);
+    const { lastFrame, unmount } = render(
+      <PickerView archive={archive} token={undefined} onPick={() => undefined} onQuit={() => undefined} now={NOW} />,
+    );
+    const lines = await eventually(() => {
+      const lines = (lastFrame() ?? '').split('\n');
+      expect(lines[0]).toMatch(/eXF1LT ─ choose a session +season ◀ 2026 ▶/);
+      return lines;
+    });
+    expect(lines).toHaveLength(6);
+    expect(lines[1]).toMatch(/^─+$/);
+    expect(lines[2]).toContain('Singapore Grand Prix');
+    // The list gave way, and the hints are cut short so the status on the right stays whole.
+    expect(lines[4]).toMatch(/^─+$/);
+    expect(lines[5]).toMatch(/↑↓ meeting .*… {2}🔑 no token \(exf1lt login\): no car data\/positions$/);
+    unmount();
+  });
+
   it('steps back to older seasons with [ and forward with ]', async () => {
     const { stdin, lastFrame, unmount } = render(
       <PickerView archive={archive} token={undefined} onPick={() => undefined} onQuit={() => undefined} now={NOW} />,

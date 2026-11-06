@@ -217,9 +217,12 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side', export
 
   return (
     <Box flexDirection="column" height={height}>
-      <HeaderBar playback={playback} token={token} />
-      <TabBar screen={screen} tabs={tabs} active={tabIndex} width={columns} />
-      <Box height={bodyHeight}>
+      {/* In a terminal too short for everything only the body gives way: the rows around it never shrink. */}
+      <Box flexDirection="column" flexShrink={0}>
+        <HeaderBar playback={playback} token={token} />
+        <TabBar screen={screen} tabs={tabs} active={tabIndex} width={columns} />
+      </Box>
+      <Box height={bodyHeight} overflow="hidden">
         {screen === 'leaderboard' ? (
           <LeaderboardView
             tab={LEADERBOARD_TABS[leaderboardTab]!}
@@ -271,25 +274,27 @@ export function TimingView({ token, onQuit, onBack, raceControl = 'side', export
           </Box>
         ) : null}
       </Box>
-      {showBottom ? <RaceControlStrip width={columns} /> : null}
-      <Text dimColor>{'─'.repeat(columns)}</Text>
-      {showTransport ? <Scrubber playback={playback} width={columns} /> : null}
-      {lapInput !== undefined ? (
-        <Box paddingX={1}>
-          <Text>
-            Jump to lap: <Text bold>{lapInput}</Text>
-            <Text dimColor>▏ enter go · esc cancel</Text>
-          </Text>
-        </Box>
-      ) : notice ? (
-        <Box paddingX={1}>
-          <Text wrap="truncate" {...colorProp(notice.error ? '#e8002d' : undefined)}>
-            {notice.text}
-          </Text>
-        </Box>
-      ) : (
-        <KeyHints hints={hints} />
-      )}
+      <Box flexDirection="column" flexShrink={0}>
+        {showBottom ? <RaceControlStrip width={columns} /> : null}
+        <Text dimColor>{'─'.repeat(columns)}</Text>
+        {showTransport ? <Scrubber playback={playback} width={columns} /> : null}
+        {lapInput !== undefined ? (
+          <Box paddingX={1}>
+            <Text>
+              Jump to lap: <Text bold>{lapInput}</Text>
+              <Text dimColor>▏ enter go · esc cancel</Text>
+            </Text>
+          </Box>
+        ) : notice ? (
+          <Box paddingX={1}>
+            <Text wrap="truncate" {...colorProp(notice.error ? '#e8002d' : undefined)}>
+              {notice.text}
+            </Text>
+          </Box>
+        ) : (
+          <KeyHints hints={hints} />
+        )}
+      </Box>
     </Box>
   );
 }

@@ -1,7 +1,8 @@
 import { type LiveTimingMessage, Timeline } from '@exhumer/f1-live-timing';
+import { Text } from 'ink';
 import { render } from 'ink-testing-library';
 import type { ReactNode } from 'react';
-import { vi } from 'vitest';
+import { onTestFinished, vi } from 'vitest';
 
 import type { Session } from '../src/sources/session.js';
 import { SessionProvider } from '../src/state/SessionContext.js';
@@ -9,6 +10,14 @@ import type { TimingRow } from '../src/state/timingRows.js';
 import type { Playback } from '../src/state/usePlayback.js';
 
 export const T0 = Date.parse('2026-10-11T12:00:00Z');
+
+/** Pretend the test terminal is `rows` high (tests/setup.ts makes it 24) until the test ends. */
+export function terminalRows(rows: number): void {
+  const probe = render(<Text />);
+  const spy = vi.spyOn(Object.getPrototypeOf(probe.stdout), 'rows', 'get').mockReturnValue(rows);
+  probe.unmount();
+  onTestFinished(() => spy.mockRestore());
+}
 
 /**
  * Retry `assertion` until it passes. Data loads, key presses and throttled

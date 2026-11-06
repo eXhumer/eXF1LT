@@ -149,7 +149,8 @@ export function PickerView({ archive, schedule, token, onPick, onQuit, now = Dat
 
   return (
     <Box flexDirection="column" height={height}>
-      <Box justifyContent="space-between" paddingX={1}>
+      {/* In a terminal too short for everything only the list gives way: the rows around it never shrink. */}
+      <Box justifyContent="space-between" paddingX={1} flexShrink={0}>
         <Text>
           <Text bold color="#e10600">eXF1LT</Text>
           <Text> ─ choose a session</Text>
@@ -158,8 +159,10 @@ export function PickerView({ archive, schedule, token, onPick, onQuit, now = Dat
           season <Text dimColor>◀</Text> <Text bold>{year ?? '…'}</Text> <Text dimColor>▶</Text>
         </Text>
       </Box>
-      <Text dimColor>{'─'.repeat(columns)}</Text>
-      <Box flexDirection="column" height={listHeight} paddingX={1}>
+      <Box flexShrink={0}>
+        <Text dimColor>{'─'.repeat(columns)}</Text>
+      </Box>
+      <Box flexDirection="column" height={listHeight} paddingX={1} overflow="hidden">
         {error ? <Text color="#e8002d">{error}</Text> : null}
         {!season && !error ? <Text dimColor>Loading season…</Text> : null}
         {Array.from({ length: Math.min(listHeight, rowCount) }, (_, offset) => {
@@ -201,21 +204,23 @@ export function PickerView({ archive, schedule, token, onPick, onQuit, now = Dat
           );
         })}
       </Box>
-      <Text dimColor>{'─'.repeat(columns)}</Text>
-      <KeyHints
-        hints={[
-          ['↑↓', 'meeting'],
-          ['←→', 'session'],
-          ['[ ]', 'season'],
-          ['⏎', 'open'],
-          ['q', 'quit'],
-        ]}
-        right={
-          season && checkedCount < sessionCount
-            ? `checking the archive ${checkedCount}/${sessionCount}`
-            : tokenLine(token)
-        }
-      />
+      <Box flexDirection="column" flexShrink={0}>
+        <Text dimColor>{'─'.repeat(columns)}</Text>
+        <KeyHints
+          hints={[
+            ['↑↓', 'meeting'],
+            ['←→', 'session'],
+            ['[ ]', 'season'],
+            ['⏎', 'open'],
+            ['q', 'quit'],
+          ]}
+          right={
+            season && checkedCount < sessionCount
+              ? `checking the archive ${checkedCount}/${sessionCount}`
+              : tokenLine(token)
+          }
+        />
+      </Box>
     </Box>
   );
 }

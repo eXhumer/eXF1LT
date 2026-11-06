@@ -15,7 +15,7 @@ import {
   sidebarMax,
   TimingView,
 } from '../src/views/TimingView.js';
-import { eventually, raceTimeline, replaySession, T0 } from './helpers.js';
+import { eventually, raceTimeline, replaySession, T0, terminalRows } from './helpers.js';
 
 /** For asserting that something did *not* change: give it a chance to. */
 const settle = () => new Promise((resolve) => setTimeout(resolve, 100));
@@ -71,6 +71,24 @@ describe('TimingView', () => {
     expect(header.indexOf('GAP') + 3).toBe(pia.indexOf('+2.4') + 4);
     expect(header.indexOf('LAP TIME')).toBe(pia.indexOf('1:35.412'));
     expect(header.indexOf('S1')).toBe(pia.indexOf('27.913'));
+    unmount();
+  });
+
+  it('keeps the header and footer whole in a terminal too short for everything, clipping the body', async () => {
+    terminalRows(12);
+    const { lastFrame, unmount } = view();
+    const lines = await eventually(() => {
+      const lines = (lastFrame() ?? '').split('\n');
+      expect(lines[0]).toContain('eXF1LT  Singapore Grand Prix · Race');
+      return lines;
+    });
+    expect(lines[1]).toContain('LAP 2/62');
+    expect(lines[3]).toContain('1 LEADERBOARD');
+    expect(lines).toHaveLength(12);
+    expect(lines.at(-1)).toContain('1-4 screen');
+    expect(lines.at(-2)).toContain('❚❚ 1×');
+    // The race control strip still fits; the leaderboard has no rows left.
+    expect(lines[4]).toContain('RACE CONTROL');
     unmount();
   });
 
